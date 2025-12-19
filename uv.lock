@@ -1406,7 +1406,7 @@ requires-dist = [
     { name = "boto3", specifier = ">=1.42.4" },
     { name = "pydantic-settings", specifier = ">=2.12.0" },
     { name = "strands-agents", specifier = ">=1.7.0" },
-    { name = "yahoo-dsp-agent-sdk", specifier = "==0.0.0.dev0+8a779ce" },
+    { name = "yahoo-dsp-agent-sdk", specifier = "==0.0.0.dev0+350901c" },
 ]
 
 [package.metadata.requires-dev]
@@ -1661,13 +1661,13 @@ wheels = [
 
 [[package]]
 name = "yahoo-dsp-agent-sdk"
-version = "0.0.0.dev0+8a779ce"
+version = "0.0.0.dev0+350901c"
 source = { registry = "https://edge.dist.yahoo.com:4443/artifactory/api/pypi/pypi/simple" }
 dependencies = [
     { name = "strands-agents" },
 ]
 wheels = [
-    { url = "https://edge.dist.yahoo.com:4443/artifactory/api/pypi/pypi/yahoo-dsp-agent-sdk/yahoo_dsp_agent_sdk-0.0.0.dev0+8a779ce-py3-none-any.whl", hash = "sha256:f3802a47a235d8940b3c1555a18aa0c948ad5ddaf7e02529586eefa34318192a" },
+    { url = "https://edge.dist.yahoo.com:4443/artifactory/api/pypi/pypi/yahoo-dsp-agent-sdk/yahoo_dsp_agent_sdk-0.0.0.dev0+350901c-py3-none-any.whl", hash = "sha256:8b4dfaa59026a697642e23725f488033ebab472d07f10067e155fee35c1b7581" },
 ]
 
 [[package]]
