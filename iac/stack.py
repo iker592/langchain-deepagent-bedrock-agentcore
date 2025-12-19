@@ -52,5 +52,22 @@ class ServerlessDeepAgentStack(Stack):
         memory.grant_read_short_term_memory(runtime)
         memory.grant_write(runtime)
 
+        cross_account_role = iam.Role(
+            self,
+            "AgentCoreInvokeRole",
+            role_name="AgentCoreInvokeRole",
+            assumed_by=iam.AccountPrincipal("864830204113"),  # type: ignore[arg-type]
+        )
+        cross_account_role.add_to_policy(
+            iam.PolicyStatement(
+                actions=["bedrock-agentcore:InvokeAgentRuntime"],
+                resources=[
+                    runtime.agent_runtime_arn,
+                    f"{runtime.agent_runtime_arn}/*",
+                ],
+            )
+        )
+
         CfnOutput(self, "RuntimeName", value=runtime.agent_runtime_id)
         CfnOutput(self, "MemoryId", value=memory.memory_id)
+        CfnOutput(self, "CrossAccountRoleArn", value=cross_account_role.role_arn)
