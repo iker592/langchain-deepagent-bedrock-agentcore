@@ -24,7 +24,6 @@ project-includes = [
 [dependency-groups]
 dev = [
     "bedrock-agentcore-starter-toolkit>=0.2.2",
-    "poethepoet>=0.38.0",
     "ruff>=0.14.8",
 ]
 
@@ -36,26 +35,4 @@ select = [
     "B",
     "SIM",
     "I",
-]
-
-[tool.poe.tasks]
-lint = "ruff check ."
-format = "ruff format ."
-build = "docker compose build"
-start = "docker compose up -d"
-restart = "docker compose up --build -d"
-down = "docker compose down"
-logs = "docker compose logs -f"
-dev = "docker compose watch"
-deploy = "cdk deploy --require-approval never"
-
-[tool.poe.tasks.invoke]
-script = "scripts.invoke:main"
-envfile = ".env"
-args = [
-    { name = "session-id", options = ["--session-id"], required = true },
-    { name = "user-id", options = ["--user-id"], required = true },
-    { name = "input", options = ["--input"], required = true },
-    { name = "agent-runtime-arn", options = ["--agent-runtime-arn"], required = true },
-    { name = "region", options = ["--region"], default = "${AWS_REGION}" }
 ]
