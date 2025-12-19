@@ -1,0 +1,18 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug Agent",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "agent.main",
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "MODEL": "bedrock:us.anthropic.claude-haiku-4-5-20251001-v1:0",
+        "AWS_REGION": "us-east-1"
+      },
+      "justMyCode": false
+    }
+  ]
+}
+
