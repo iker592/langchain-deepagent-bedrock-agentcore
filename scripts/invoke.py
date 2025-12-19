@@ -14,6 +14,6 @@ def main(
         payload=json.dumps(body),
     )
 
-    response_body = b"".join(response["response"]).decode("utf-8")
+    response_body = response["response"].read()
     response_data = json.loads(response_body)
-    print(json.dumps(response_data, indent=2))
+    print("Agent Response:", response_data)
