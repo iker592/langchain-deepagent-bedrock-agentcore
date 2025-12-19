@@ -22,7 +22,8 @@ help:
 	@echo "    make dev         Start with hot reload (watch mode)"
 	@echo ""
 	@echo "  Local Development"
-	@echo "    make local       Run agent locally without Docker"
+	@echo "    make local       Run agent locally (in-memory state)"
+	@echo "    make local MEMORY_ID=<id>  Run with AWS AgentCore Memory"
 	@echo ""
 	@echo "  Deployment"
 	@echo "    make deploy      Deploy to AWS with CDK"
@@ -79,7 +80,9 @@ dev:
 	docker compose watch
 
 local:
-	MODEL=bedrock:us.anthropic.claude-haiku-4-5-20251001-v1:0 uv run python -m agent.main
+	MODEL=bedrock:us.anthropic.claude-haiku-4-5-20251001-v1:0 \
+	MEMORY_ID=$(or $(MEMORY_ID),) \
+	uv run python -m agent.main
 
 deploy:
 	uv run cdk deploy --require-approval never
