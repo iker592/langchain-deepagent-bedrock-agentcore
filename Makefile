@@ -1,4 +1,4 @@
-.PHONY: help setup sync lint format fix build start restart down logs dev local deploy invoke clean
+.PHONY: help setup sync lint format fix build start restart down logs dev local deploy invoke clean aws-auth
 
 help:
 	@echo "Available commands:"
@@ -6,6 +6,7 @@ help:
 	@echo "  Setup & Dependencies"
 	@echo "    make setup       Install uv and sync dependencies"
 	@echo "    make sync        Sync dependencies with uv"
+	@echo "    make aws-auth    Setup AWS authentication (federate)"
 	@echo ""
 	@echo "  Code Quality"
 	@echo "    make lint        Check code with ruff"
@@ -37,6 +38,18 @@ setup:
 
 sync:
 	uv sync
+
+aws-auth:
+	@if command -v setyinit; then \
+		setyinit; \
+	elif command -v jyinit; then \
+		jyinit; \
+	elif command -v yinit; then \
+		yinit; \
+	fi
+	@if command -v awsfed2; then \
+		awsfed2 -n -a 905418222531 -r sso/fed.bedrock-poc.user; \
+	fi
 
 lint:
 	uv run ruff check .
