@@ -4,7 +4,7 @@ from uuid import uuid4
 from bedrock_agentcore import BedrockAgentCoreApp
 from yahoo_dsp_agent_sdk.agent import Agent
 
-from .example_strands_agent import create_example_agent
+from .agent import create_agent
 from .settings import Settings
 
 basicConfig(level=INFO)
@@ -23,7 +23,7 @@ async def invoke(payload, context):
         else payload.get("session_id", "DEFAULT")
     )
 
-    agent: Agent = create_example_agent(
+    agent: Agent = create_agent(
         memory_id=settings.memory_id,
         session_id=session_id,
         actor_id=user_id,

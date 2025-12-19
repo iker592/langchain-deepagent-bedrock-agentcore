@@ -53,7 +53,7 @@ def get_weather(city: str) -> str:
     return f"The weather in {city} is sunny and 72°F."
 
 
-def create_example_agent(
+def create_agent(
     memory_id: str | None = None,
     session_id: str | None = None,
     actor_id: str | None = None,
@@ -109,7 +109,7 @@ def create_example_agent(
 if __name__ == "__main__":
     print("=== Testing Example Strands Agent ===\n")
 
-    agent = create_example_agent()
+    agent = create_agent()
 
     print("Example 1: Greeting")
     structured_output, result = agent.invoke("Greet Alice")

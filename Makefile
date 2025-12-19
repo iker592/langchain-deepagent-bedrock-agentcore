@@ -28,7 +28,7 @@ help:
 	@echo "  Deployment"
 	@echo "    make deploy      Deploy to AWS with CDK"
 	@echo "    make invoke      Invoke deployed agent"
-	@echo "                     Usage: make invoke SESSION_ID=<id> USER_ID=<id> INPUT=<msg> ARN=<arn>"
+	@echo "                     Usage: make invoke INPUT=<msg> [SESSION_ID=<id>] [USER_ID=<id>]"
 	@echo ""
 	@echo "  Utilities"
 	@echo "    make clean       Clean cache files"
@@ -87,12 +87,15 @@ local:
 deploy:
 	uv run cdk deploy --require-approval never
 
-invoke:
-	@if [ -z "$(SESSION_ID)" ] || [ -z "$(USER_ID)" ] || [ -z "$(INPUT)" ] || [ -z "$(ARN)" ]; then \
-		echo "Usage: make invoke SESSION_ID=<id> USER_ID=<id> INPUT=<msg> ARN=<arn> [REGION=us-east-1]"; \
+invoke: aws-auth
+	@if [ -z "$(INPUT)" ]; then \
+		echo "Usage: make invoke INPUT=<msg> [SESSION_ID=<id>] [USER_ID=<id>]"; \
 		exit 1; \
 	fi
-	uv run python -c "from scripts.invoke import main; main('$(SESSION_ID)', '$(USER_ID)', '$(INPUT)', '$(ARN)', '$(or $(REGION),us-east-1)')"
+	@if [ -z "$(SESSION_ID)" ] || [ -z "$(USER_ID)" ]; then \
+		echo " Note: SESSION_ID and USER_ID not provided. Using defaults (memory won't persist across invocations)."; \
+	fi
+	uv run python -c "from scripts.invoke import main; main('$(INPUT)', $(if $(SESSION_ID),'$(SESSION_ID)',None), $(if $(USER_ID),'$(USER_ID)',None))"
 
 clean:
 	find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
