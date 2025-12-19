@@ -2,27 +2,15 @@ from logging import INFO, basicConfig, getLogger
 from uuid import uuid4
 
 from bedrock_agentcore import BedrockAgentCoreApp
-from langgraph.checkpoint.memory import MemorySaver
-from langgraph.config import RunnableConfig
-from langgraph_checkpoint_aws import AgentCoreMemorySaver
+from yahoo_dsp_agent_sdk.agent import Agent
 
 from .example_strands_agent import create_example_agent
-from .settings import Settings
 
 basicConfig(level=INFO)
 
 logger = getLogger(__name__)
-settings = Settings()
 app = BedrockAgentCoreApp()
-
-if settings.memory_id:
-    checkpointer = AgentCoreMemorySaver(
-        memory_id=settings.memory_id, region_name=settings.aws_region
-    )
-else:
-    checkpointer = MemorySaver()
-
-agent = create_example_agent()
+agent: Agent = create_example_agent()
 
 
 @app.entrypoint
@@ -33,24 +21,13 @@ async def invoke(payload, context):
         if context and context.session_id
         else payload.get("session_id", "DEFAULT")
     )
-    config: RunnableConfig = {
-        "configurable": {
-            "thread_id": session_id,
-            "actor_id": user_id,
-            "user_id": user_id,
-        }
-    }
     user_message = payload.get("input")
-    response = await agent.ainvoke(
-        {"messages": [{"role": "user", "content": user_message}]}, config=config
-    )
-    latest_message = response["messages"][-1].content_blocks
-    for m in response["messages"]:
-        logger.info(m.pretty_repr())
-
+    structured_output, response = agent.invoke(user_message)
+    logger.info(f"Response: {response}")
     return {
-        "content": latest_message,
+        "content": structured_output,
         "session_id": session_id,
+        "user_id": user_id,
     }
 
 
