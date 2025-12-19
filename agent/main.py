@@ -2,11 +2,11 @@ from logging import INFO, basicConfig, getLogger
 from uuid import uuid4
 
 from bedrock_agentcore import BedrockAgentCoreApp
-from deepagents import create_deep_agent
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.config import RunnableConfig
 from langgraph_checkpoint_aws import AgentCoreMemorySaver
 
+from .example_strands_agent import create_example_agent
 from .settings import Settings
 
 basicConfig(level=INFO)
@@ -22,10 +22,7 @@ if settings.memory_id:
 else:
     checkpointer = MemorySaver()
 
-agent = create_deep_agent(
-    model=settings.model,
-    checkpointer=checkpointer,
-)
+agent = create_example_agent()
 
 
 @app.entrypoint

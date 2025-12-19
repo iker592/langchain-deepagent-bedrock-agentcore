@@ -13,6 +13,7 @@ dependencies = [
     "langchain[aws]>=1.1.2",
     "langgraph-checkpoint-aws>=1.0.1",
     "pydantic-settings>=2.12.0",
+    "yahoo-dsp-agent-sdk==1.28.0",
 ]
 
 [tool.pyrefly]
@@ -26,6 +27,10 @@ dev = [
     "bedrock-agentcore-starter-toolkit>=0.2.2",
     "ruff>=0.14.8",
 ]
+
+[[tool.uv.index]]
+name = "yahoo-pypi"
+url = "https://edge.dist.yahoo.com:4443/artifactory/api/pypi/pypi/simple"
 
 [tool.ruff.lint]
 select = [
