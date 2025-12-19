@@ -8,49 +8,11 @@ from bedrock_agentcore.memory.integrations.strands.session_manager import (
     AgentCoreMemorySessionManager,
 )
 from strands.models.bedrock import BedrockModel
-from strands.tools import tool
+from strands_tools import calculator
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from yahoo_dsp_agent_sdk.agent import Agent
-
-
-@tool
-def simple_calculator(a: int, b: int, operation: str) -> str:
-    """Perform simple arithmetic operations.
-
-    Args:
-        a: First number
-        b: Second number
-        operation: One of 'add', 'subtract', 'multiply', 'divide'
-    """
-    operations = {
-        "add": a + b,
-        "subtract": a - b,
-        "multiply": a * b,
-        "divide": a / b if b != 0 else "Error: Division by zero",
-    }
-    return str(operations.get(operation, "Error: Unknown operation"))
-
-
-@tool
-def greet(name: str) -> str:
-    """Greet someone by name.
-
-    Args:
-        name: The name of the person to greet
-    """
-    return f"Hello, {name}! Nice to meet you."
-
-
-@tool
-def get_weather(city: str) -> str:
-    """Get weather information for a city.
-
-    Args:
-        city: The city name
-    """
-    return f"The weather in {city} is sunny and 72°F."
 
 
 def create_agent(
@@ -95,30 +57,32 @@ def create_agent(
     agent = Agent(
         model=model,
         system_prompt=(
-            "You are a friendly assistant that helps with stories, greetings, "
-            "weather, and calculations."
+            "You are a data analyst. You help users analyze data, perform calculations,"
+            "and provide insights. Be precise and concise in your responses."
         ),
-        tools=[greet, get_weather, simple_calculator],
+        tools=[calculator],
         session_manager=session_manager,
-        agent_id=agent_id or "example-agent",
+        agent_id=agent_id or "analyst-agent",
     )
 
     return agent
 
 
 if __name__ == "__main__":
-    print("=== Testing Example Strands Agent ===\n")
+    print("=== Testing Analyst Agent ===\n")
 
     agent = create_agent()
 
-    print("Example 1: Greeting")
-    structured_output, result = agent.invoke("Greet Alice")
-    print(f"✅ Result: {result}\n")
-
-    print("Example 2: Calculation")
+    print("Example 1: Simple calculation")
     structured_output, result = agent.invoke("What is 15 * 3?")
     print(f"✅ Result: {result}\n")
 
-    print("Example 3: Weather")
-    structured_output, result = agent.invoke("What's the weather in Seattle?")
+    print("Example 2: Percentage calculation")
+    structured_output, result = agent.invoke("What is 25% of 200?")
+    print(f"✅ Result: {result}\n")
+
+    print("Example 3: Growth analysis")
+    structured_output, result = agent.invoke(
+        "If revenue grew from 100 to 150, what's the percentage increase?"
+    )
     print(f"✅ Result: {result}\n")
