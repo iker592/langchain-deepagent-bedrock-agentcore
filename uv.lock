@@ -169,6 +169,11 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/36/b7/2f1cebebe92d5142f2e2814778f9a2a385cfbee85d359b5d9558c4bb6086/bedrock_agentcore-1.1.1-py3-none-any.whl", hash = "sha256:f6cd9cde770077155317ce5f622aa3e3773dcb004c83555f71f61e6fa2c4e7ca", size = 112943, upload-time = "2025-12-03T19:16:25.091Z" },
 ]
 
+[package.optional-dependencies]
+strands-agents = [
+    { name = "strands-agents" },
+]
+
 [[package]]
 name = "bedrock-agentcore-starter-toolkit"
 version = "0.2.2"
@@ -1379,7 +1384,7 @@ dependencies = [
     { name = "ag-ui-protocol" },
     { name = "aws-cdk-aws-bedrock-agentcore-alpha" },
     { name = "aws-cdk-lib" },
-    { name = "bedrock-agentcore" },
+    { name = "bedrock-agentcore", extra = ["strands-agents"] },
     { name = "boto3" },
     { name = "pydantic-settings" },
     { name = "strands-agents" },
@@ -1397,11 +1402,11 @@ requires-dist = [
     { name = "ag-ui-protocol", specifier = ">=0.1.9" },
     { name = "aws-cdk-aws-bedrock-agentcore-alpha", specifier = ">=2.232.1a0" },
     { name = "aws-cdk-lib", specifier = ">=2.232.1" },
-    { name = "bedrock-agentcore", specifier = ">=1.1.1" },
+    { name = "bedrock-agentcore", extras = ["strands-agents"], specifier = ">=1.1.1" },
     { name = "boto3", specifier = ">=1.42.4" },
     { name = "pydantic-settings", specifier = ">=2.12.0" },
     { name = "strands-agents", specifier = ">=1.7.0" },
-    { name = "yahoo-dsp-agent-sdk", specifier = "==1.28.0" },
+    { name = "yahoo-dsp-agent-sdk", specifier = "==0.0.0.dev0+8a779ce" },
 ]
 
 [package.metadata.requires-dev]
@@ -1656,13 +1661,13 @@ wheels = [
 
 [[package]]
 name = "yahoo-dsp-agent-sdk"
-version = "1.28.0"
+version = "0.0.0.dev0+8a779ce"
 source = { registry = "https://edge.dist.yahoo.com:4443/artifactory/api/pypi/pypi/simple" }
 dependencies = [
     { name = "strands-agents" },
 ]
 wheels = [
-    { url = "https://edge.dist.yahoo.com:4443/artifactory/api/pypi/pypi/yahoo-dsp-agent-sdk/yahoo_dsp_agent_sdk-1.28.0-py3-none-any.whl", hash = "sha256:5c279d8e918adfe8caed62daa44dc2b34735618fa87332eb9d2980863167b33c" },
+    { url = "https://edge.dist.yahoo.com:4443/artifactory/api/pypi/pypi/yahoo-dsp-agent-sdk/yahoo_dsp_agent_sdk-0.0.0.dev0+8a779ce-py3-none-any.whl", hash = "sha256:f3802a47a235d8940b3c1555a18aa0c948ad5ddaf7e02529586eefa34318192a" },
 ]
 
 [[package]]

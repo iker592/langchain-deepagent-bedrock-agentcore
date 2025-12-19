@@ -5,12 +5,13 @@ from bedrock_agentcore import BedrockAgentCoreApp
 from yahoo_dsp_agent_sdk.agent import Agent
 
 from .example_strands_agent import create_example_agent
+from .settings import Settings
 
 basicConfig(level=INFO)
 
 logger = getLogger(__name__)
+settings = Settings()
 app = BedrockAgentCoreApp()
-agent: Agent = create_example_agent()
 
 
 @app.entrypoint
@@ -21,11 +22,20 @@ async def invoke(payload, context):
         if context and context.session_id
         else payload.get("session_id", "DEFAULT")
     )
+
+    agent: Agent = create_example_agent(
+        memory_id=settings.memory_id,
+        session_id=session_id,
+        actor_id=user_id,
+        region_name=settings.aws_region,
+    )
+
     user_message = payload.get("input")
     structured_output, response = agent.invoke(user_message)
-    logger.info(f"Response: {response}")
+    content = str(response) if response else structured_output
+    logger.info(f"Response: {content}")
     return {
-        "content": structured_output,
+        "content": content,
         "session_id": session_id,
         "user_id": user_id,
     }
