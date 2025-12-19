@@ -1,178 +1,232 @@
 # Serverless Deep Agent
 
-A serverless AI agent built with Amazon Bedrock AgentCore + DeepAgents. This project deploys an AI agent runtime on AWS that can maintain conversation state.
+A serverless AI agent built with **Amazon Bedrock AgentCore** + **DeepAgents** framework. Deploys to AWS as a fully managed runtime with conversation memory.
 
-## Prerequisites
+## 🚀 Quick Start
+
+```bash
+# Setup
+make setup
+
+# Run locally (no Docker)
+make local
+
+# Or with Docker
+make start
+```
+
+## 📋 Prerequisites
 
 - Python 3.13+
-- [uv](https://github.com/astral-sh/uv) (Python package manager)
-- Docker
-- AWS Account with appropriate permissions
-- AWS CLI configured with credentials
+- [uv](https://github.com/astral-sh/uv) - Fast Python package manager
+- Docker (for containerized development)
+- AWS CLI + credentials (for deployment)
 
-## Quick Start
+## 🏗️ Architecture
 
-1. Install dependencies:
-```bash
-uv sync
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    AWS Bedrock AgentCore                     │
+│  ┌─────────────────┐    ┌─────────────────┐                 │
+│  │  Agent Runtime  │───▶│  Bedrock LLM    │                 │
+│  │  (DeepAgent)    │    │  (Claude)       │                 │
+│  └─────────────────┘    └─────────────────┘                 │
+│           │                                                  │
+│           ▼                                                  │
+│  ┌─────────────────┐                                        │
+│  │  Memory Store   │  (AgentCore Memory / MemorySaver)      │
+│  └─────────────────┘                                        │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-2. Set up environment variables:
-```bash
-cp .env.template .env
-```
+**Stack:**
+- **[DeepAgents](https://github.com/anthropics/deepagents)** - AI agent framework with tool use
+- **[LangGraph](https://github.com/langchain-ai/langgraph)** - Graph-based agent orchestration
+- **[AWS Bedrock AgentCore](https://docs.aws.amazon.com/bedrock/latest/userguide/agents.html)** - Serverless agent runtime
+- **[AWS CDK](https://aws.amazon.com/cdk/)** - Infrastructure as Code
 
-Edit `.env` and fill in required values:
-- `AWS_REGION`: Your AWS region (e.g., `us-east-1`)
-- `MEMORY_ID`: DynamoDB table name for agent memory
-- `MODEL`: Bedrock model to use (default: `bedrock:global.anthropic.claude-sonnet-4-5-20250929-v1:0`)
-
-## Directory Structure
+## 📁 Project Structure
 
 ```
 .
-├── agent
-│   ├── __init__.py
-│   ├── main.py        # Main agent entrypoint with BedrockAgentCore integration
-│   └── settings.py    # Configuration settings using Pydantic
-├── cdk.json
-├── docker-compose.yml # Local development with Docker
-├── Dockerfile         # Agent container definition
-├── iac                # Infrastructure as Code (AWS CDK)
-│   ├── __init__.py
-│   ├── app.py         # CDK app entry point
-│   └── stack.py       # CDK stack definition
-├── pyproject.toml     # Python project configuration
-├── README.md
-├── scripts            # Utility scripts
-│   ├── __init__.py
-│   └── invoke.py      # Script to invoke deployed agent
-└── uv.lock
+├── agent/
+│   ├── main.py           # Agent entrypoint (BedrockAgentCoreApp)
+│   └── settings.py       # Configuration (Pydantic)
+├── iac/
+│   ├── app.py            # CDK app entry point
+│   └── stack.py          # CDK stack (Runtime + Memory)
+├── scripts/
+│   └── invoke.py         # CLI to invoke deployed agent
+├── .vscode/
+│   └── launch.json       # Debug configuration
+├── Dockerfile            # Container definition
+├── docker-compose.yml    # Local Docker development
+├── cdk.json              # CDK configuration
+├── Makefile              # Task automation
+└── pyproject.toml        # Python dependencies
 ```
 
-## Available Commands
+## 🛠️ Available Commands
 
-This project uses [Poethepoet](https://github.com/nat-n/poethepoet) for task automation. Run commands using `uv run poe <command>`.
+Run `make help` to see all commands:
 
-### Code Quality
+```
+Setup & Dependencies
+  make setup       Install uv and sync dependencies
+  make sync        Sync dependencies with uv
+  make aws-auth    Setup AWS authentication (federate)
 
-| Command | Description |
-|---------|-------------|
-| `uv run poe lint` | Run Ruff linter to check code quality |
-| `uv run poe format` | Format code using Ruff |
+Code Quality
+  make lint        Check code with ruff
+  make format      Format code with ruff
+  make fix         Format and fix linting issues
 
-### Docker Development
+Docker Development
+  make build       Build Docker image
+  make start       Start container (detached)
+  make restart     Rebuild and restart container
+  make down        Stop and remove container
+  make logs        Follow container logs
+  make dev         Start with hot reload (watch mode)
 
-| Command | Description |
-|---------|-------------|
-| `uv run poe build` | Build Docker image |
-| `uv run poe start` | Start agent in Docker container (detached) |
-| `uv run poe restart` | Rebuild and restart agent container |
-| `uv run poe down` | Stop and remove containers |
-| `uv run poe logs` | Follow container logs |
-| `uv run poe dev` | Start Docker Compose in watch mode (auto-reload on changes) |
+Local Development
+  make local       Run agent locally without Docker
 
-### Deployment
+Deployment
+  make deploy      Deploy to AWS with CDK
+  make invoke      Invoke deployed agent
 
-| Command | Description |
-|---------|-------------|
-| `uv run poe deploy` | Deploy infrastructure to AWS using CDK |
+Utilities
+  make clean       Clean cache files
+```
+
+## 💻 Development Modes
+
+### 1. Local (No Docker)
+
+Fastest for development. Uses in-memory checkpointer.
+
+```bash
+make local
+# Agent runs at http://localhost:8080
+```
+
+Test with:
+```bash
+curl -X POST http://localhost:8080/invocations \
+  -H "Content-Type: application/json" \
+  -d '{"input": "Hello!", "user_id": "test"}'
+```
+
+### 2. Docker
+
+Closer to production environment.
+
+```bash
+make start       # Start container
+make logs        # View logs
+make dev         # Hot reload mode
+```
+
+### 3. VS Code Debugging
+
+Press **F5** to start debugging with breakpoints.
+
+## ☁️ AWS Deployment
+
+### Deploy
+
+```bash
+make aws-auth    # Authenticate (if using federated creds)
+make deploy      # Deploy via CDK
+```
+
+Outputs:
+- `RuntimeName`: Agent runtime ID
+- `MemoryId`: Memory store ID
 
 ### Invoke Deployed Agent
 
 ```bash
-uv run poe invoke \
-  --session-id "my-session-123" \
-  --user-id "user-456" \
-  --input "Hello, how can you help me?" \
-  --agent-runtime-arn "arn:aws:bedrock-agentcore:us-east-1:123456789012:agent-runtime/xyz"
+make invoke \
+  SESSION_ID="my-session-123456789012345678" \
+  USER_ID="user-123" \
+  INPUT="Hello, what can you do?" \
+  ARN="arn:aws:bedrock-agentcore:us-east-1:ACCOUNT:runtime/RUNTIME_ID"
 ```
 
-Parameters:
-- `--session-id`: Unique session identifier for conversation continuity
-- `--user-id`: User identifier
-- `--input`: Message to send to the agent
-- `--agent-runtime-arn`: ARN of the deployed agent runtime
-- `--region`: (Optional) AWS region (defaults to `AWS_REGION` from .env)
+### AWS Console Sandbox
 
-## Development Workflow
-
-### Local Development with Docker
-
-1. Build and start the agent:
-```bash
-uv run poe start
+1. Go to **Bedrock AgentCore** → **Agent runtimes** → Your agent
+2. Click **Test endpoint**
+3. Use JSON payload:
+```json
+{
+  "input": "Hello!",
+  "user_id": "12345"
+}
 ```
 
-2. The agent will be available at `http://localhost:8080`
+## ⚙️ Configuration
 
-3. For active development with auto-reload:
-```bash
-uv run poe dev
-```
+### Environment Variables
 
-This watches the `agent/` directory and syncs changes automatically. If `pyproject.toml` changes, it rebuilds the container.
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `MODEL` | Bedrock model ID | Required |
+| `AWS_REGION` | AWS region | `us-east-1` |
+| `MEMORY_ID` | AgentCore Memory ID | Optional (local uses MemorySaver) |
 
-4. View logs:
-```bash
-uv run poe logs
-```
-
-### Code Quality
-
-Before committing, ensure code quality:
+### Local Development
 
 ```bash
-uv run poe lint
-uv run poe format
+MODEL=bedrock:us.anthropic.claude-haiku-4-5-20251001-v1:0 make local
 ```
 
-### Deploy to AWS
+### CDK Configuration
 
-1. Ensure AWS credentials are configured
-
-2. Deploy the stack:
-```bash
-uv run poe deploy
+Edit `cdk.json` to change bootstrap qualifier:
+```json
+{
+  "app": "uv run python -m iac.app",
+  "context": {
+    "@aws-cdk/core:bootstrapQualifier": "your-qualifier"
+  }
+}
 ```
 
-3. After deployment, note the `agentRuntimeArn` from the CDK output
+## 🔧 Customization
 
-4. Test the deployed agent:
-```bash
-uv run poe invoke \
-  --session-id "test-session" \
-  --user-id "test-user" \
-  --input "What can you do?" \
-  --agent-runtime-arn "<your-agent-runtime-arn>"
+### Change the Model
+
+Edit `iac/stack.py`:
+```python
+environment_variables={
+    "MODEL": "bedrock:global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+}
 ```
 
-## Architecture
+### Add Tools to the Agent
 
-- **Agent**: Built using [DeepAgents](https://github.com/anthropics/deepagents) framework with Claude Sonnet 4.5
-- **Runtime**: AWS Bedrock AgentCore for serverless execution
-- **Memory**: LangGraph checkpointing with AWS AgentCore Memory Saver
-- **Infrastructure**: AWS CDK for infrastructure management
-- **Containerization**: Docker for local development and deployment
+The DeepAgent comes with built-in tools (file ops, search, todo management). To add custom tools, modify `agent/main.py`:
 
-## Environment Variables
+```python
+from deepagents import create_deep_agent
 
-| Variable | Description | Required |
-|----------|-------------|----------|
-| `AWS_REGION` | AWS region for deployment | Yes |
-| `MEMORY_ID` | DynamoDB table name for agent memory | Yes |
-| `MODEL` | Bedrock model identifier | Yes |
-| `AWS_ACCESS_KEY_ID` | AWS access key (for local Docker) | No* |
-| `AWS_SECRET_ACCESS_KEY` | AWS secret key (for local Docker) | No* |
-| `AWS_SESSION_TOKEN` | AWS session token (for local Docker) | No* |
+agent = create_deep_agent(
+    model=settings.model,
+    checkpointer=MemorySaver(),
+    # tools=[your_custom_tools],  # Add custom tools here
+)
+```
 
-*Note: For local Docker development, AWS credentials are mounted from `~/.aws` by default. Environment variables can be used as an alternative.
+## 📚 Resources
 
-## Technologies
+- [DeepAgents Documentation](https://github.com/anthropics/deepagents)
+- [AWS Bedrock AgentCore](https://docs.aws.amazon.com/bedrock/latest/userguide/agents.html)
+- [LangGraph](https://github.com/langchain-ai/langgraph)
+- [AWS CDK Python](https://docs.aws.amazon.com/cdk/v2/guide/work-with-cdk-python.html)
 
-- **[uv](https://github.com/astral-sh/uv)**: Fast Python package manager
-- **[Poethepoet](https://github.com/nat-n/poethepoet)**: Task runner for Python projects
-- **[DeepAgents](https://github.com/anthropics/deepagents)**: Framework for building AI agents
-- **[AWS Bedrock AgentCore](https://docs.aws.amazon.com/bedrock/latest/userguide/agents.html)**: Serverless agent runtime
-- **[LangGraph](https://github.com/langchain-ai/langgraph)**: Graph-based agent orchestration
-- **[AWS CDK](https://aws.amazon.com/cdk/)**: Infrastructure as Code for AWS
+## 📄 License
+
+MIT
