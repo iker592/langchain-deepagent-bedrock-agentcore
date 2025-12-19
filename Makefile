@@ -1,4 +1,35 @@
-.PHONY: setup sync lint format fix build start restart down logs dev local deploy invoke clean
+.PHONY: help setup sync lint format fix build start restart down logs dev local deploy invoke clean
+
+help:
+	@echo "Available commands:"
+	@echo ""
+	@echo "  Setup & Dependencies"
+	@echo "    make setup       Install uv and sync dependencies"
+	@echo "    make sync        Sync dependencies with uv"
+	@echo ""
+	@echo "  Code Quality"
+	@echo "    make lint        Check code with ruff"
+	@echo "    make format      Format code with ruff"
+	@echo "    make fix         Format and fix linting issues"
+	@echo ""
+	@echo "  Docker Development"
+	@echo "    make build       Build Docker image"
+	@echo "    make start       Start container (detached)"
+	@echo "    make restart     Rebuild and restart container"
+	@echo "    make down        Stop and remove container"
+	@echo "    make logs        Follow container logs"
+	@echo "    make dev         Start with hot reload (watch mode)"
+	@echo ""
+	@echo "  Local Development"
+	@echo "    make local       Run agent locally without Docker"
+	@echo ""
+	@echo "  Deployment"
+	@echo "    make deploy      Deploy to AWS with CDK"
+	@echo "    make invoke      Invoke deployed agent"
+	@echo "                     Usage: make invoke SESSION_ID=<id> USER_ID=<id> INPUT=<msg> ARN=<arn>"
+	@echo ""
+	@echo "  Utilities"
+	@echo "    make clean       Clean cache files"
 
 setup:
 	@command -v uv >/dev/null 2>&1 || { echo "Installing uv..."; curl -LsSf https://astral.sh/uv/install.sh | sh; }
