@@ -60,13 +60,13 @@ make deploy
 .
 ├── agent/
 │   ├── main.py                 # Agent entrypoint (BedrockAgentCoreApp)
-│   ├── example_strands_agent.py # Agent configuration with tools
+│   ├── agent.py                # Agent configuration with tools
 │   └── settings.py             # Configuration (Pydantic)
 ├── iac/
 │   ├── app.py                  # CDK app entry point
-│   └── stack.py                # CDK stack (Runtime + Memory)
+│   └── stack.py                # CDK stack (Runtime + Memory + Cross-account role)
 ├── scripts/
-│   └── invoke.py               # CLI to invoke deployed agent
+│   └── invoke.py               # CLI to invoke deployed agent (supports streaming)
 ├── .vscode/
 │   ├── launch.json             # Debug configuration
 │   └── settings.json           # Ruff formatter settings
@@ -104,8 +104,10 @@ Local Development
   make local       Run agent locally without Docker
 
 Deployment
-  make deploy      Deploy to AWS with CDK
-  make invoke      Invoke deployed agent
+  make deploy         Deploy to AWS with CDK
+  make invoke         Invoke deployed agent (non-streaming)
+  make invoke-stream  Invoke with plain text streaming
+  make invoke-agui    Invoke with AG-UI protocol streaming
 
 Utilities
   make clean       Clean cache files
@@ -174,14 +176,78 @@ Outputs:
 ### Invoke Deployed Agent
 
 ```bash
-make invoke \
-  SESSION_ID="my-session-123456789012345678" \
-  USER_ID="user-123" \
-  INPUT="Hello, what can you do?" \
-  ARN="arn:aws:bedrock-agentcore:us-east-1:ACCOUNT:runtime/RUNTIME_ID"
+make invoke INPUT="Hello, what can you do?"
 ```
 
-**Note:** Session ID must be at least 33 characters.
+With persistent memory:
+```bash
+make invoke \
+  INPUT="Hello, what can you do?" \
+  SESSION_ID="my-session-123456789012345678" \
+  USER_ID="user-123"
+```
+
+**Note:** Session ID must be at least 33 characters for memory persistence.
+
+### Streaming Responses
+
+The agent supports three invocation modes:
+
+| Command | Description | Use Case |
+|---------|-------------|----------|
+| `make invoke` | Non-streaming JSON | Simple integrations |
+| `make invoke-stream` | Plain text streaming | Real-time text output |
+| `make invoke-agui` | AG-UI protocol streaming | Rich UI with tool visibility |
+
+#### Plain Text Streaming
+
+```bash
+make invoke-stream INPUT="What is 25 * 4?"
+```
+
+Output:
+```
+[Session: default-session-abc123...]
+I'll help you calculate that using the calculator tool.
+The result of 25 * 4 is 100.
+[Done]
+```
+
+#### AG-UI Protocol Streaming
+
+Full event stream with tool call visibility - ideal for building rich UIs.
+
+```bash
+make invoke-agui INPUT="What is 100 / 4?"
+```
+
+Output:
+```
+[Run: default-session-abc123_default-user]
+I'll help you calculate that using the calculator tool.
+[Tool: calculator] -> Tool executed successfully...
+The result of 100 divided by 4 is 25.
+[Run finished]
+```
+
+AG-UI events include:
+- `RUN_STARTED` / `RUN_FINISHED` - Run lifecycle
+- `TEXT_MESSAGE_START` / `TEXT_MESSAGE_CONTENT` / `TEXT_MESSAGE_END` - Text streaming
+- `TOOL_CALL_START` / `TOOL_CALL_ARGS` / `TOOL_CALL_RESULT` / `TOOL_CALL_END` - Tool execution
+
+#### Streaming via curl
+
+```bash
+# Plain streaming
+curl -X POST http://localhost:8080/invocations \
+  -H "Content-Type: application/json" \
+  -d '{"input": "What is 10 + 5?", "stream": true}'
+
+# AG-UI streaming
+curl -X POST http://localhost:8080/invocations \
+  -H "Content-Type: application/json" \
+  -d '{"input": "What is 10 + 5?", "stream_agui": true}'
+```
 
 ### AWS Console Sandbox
 
