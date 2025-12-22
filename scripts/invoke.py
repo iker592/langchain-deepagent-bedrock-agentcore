@@ -9,12 +9,24 @@ DEFAULT_SESSION_ID = f"default-session-{uuid.uuid4().hex}"
 DEFAULT_USER_ID = "default-user"
 
 
-def main(input: str, session_id: str | None = None, user_id: str | None = None):
+def main(
+    input: str,
+    session_id: str | None = None,
+    user_id: str | None = None,
+    stream: bool = False,
+    stream_agui: bool = False,
+):
     settings = Settings()
     session_id = session_id or DEFAULT_SESSION_ID
     user_id = user_id or DEFAULT_USER_ID
 
-    body = {"input": input, "user_id": user_id, "session_id": session_id}
+    body = {
+        "input": input,
+        "user_id": user_id,
+        "session_id": session_id,
+        "stream": stream,
+        "stream_agui": stream_agui,
+    }
     client = boto3.client("bedrock-agentcore", region_name=settings.aws_region)
     response = client.invoke_agent_runtime(
         agentRuntimeArn=settings.agent_runtime_arn,
@@ -22,9 +34,44 @@ def main(input: str, session_id: str | None = None, user_id: str | None = None):
         payload=json.dumps(body),
     )
 
-    response_body = response["response"].read()
-    response_data = json.loads(response_body)
-    print("Agent Response:", response_data)
+    content_type = response.get("contentType", "")
+
+    if "text/event-stream" in content_type:
+        if stream_agui:
+            print("AG-UI Streaming response:")
+            for line in response["response"].iter_lines(chunk_size=10):
+                if line:
+                    line = line.decode("utf-8")
+                    if line.startswith("data: "):
+                        data = json.loads(line[6:])
+                        event_type = data.get("type")
+                        if event_type == "TEXT_MESSAGE_CONTENT":
+                            print(data.get("delta", ""), end="", flush=True)
+                        elif event_type == "RUN_STARTED":
+                            print(f"[Run: {data.get('run_id')}]")
+                        elif event_type == "RUN_FINISHED":
+                            print("\n[Run finished]")
+                        elif event_type == "TOOL_CALL_START":
+                            print(f"\n[Tool: {data.get('tool_call_name')}]", end="")
+                        elif event_type == "TOOL_CALL_RESULT":
+                            print(f" -> {data.get('content', '')[:50]}...")
+        else:
+            print("Streaming response:")
+            for line in response["response"].iter_lines(chunk_size=10):
+                if line:
+                    line = line.decode("utf-8")
+                    if line.startswith("data: "):
+                        data = json.loads(line[6:])
+                        if data.get("type") == "chunk":
+                            print(data.get("content", ""), end="", flush=True)
+                        elif data.get("type") == "start":
+                            print(f"[Session: {data.get('session_id')}]")
+                        elif data.get("type") == "end":
+                            print("\n[Done]")
+    else:
+        response_body = response["response"].read()
+        response_data = json.loads(response_body)
+        print("Agent Response:", response_data)
 
 
 if __name__ == "__main__":

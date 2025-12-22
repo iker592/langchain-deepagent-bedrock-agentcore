@@ -1,4 +1,4 @@
-.PHONY: help setup sync lint format fix build start restart down logs dev local deploy invoke clean aws-auth
+.PHONY: help setup sync lint format fix build start restart down logs dev local deploy invoke invoke-stream invoke-agui clean aws-auth
 
 help:
 	@echo "Available commands:"
@@ -27,7 +27,9 @@ help:
 	@echo ""
 	@echo "  Deployment"
 	@echo "    make deploy      Deploy to AWS with CDK"
-	@echo "    make invoke      Invoke deployed agent"
+	@echo "    make invoke      Invoke deployed agent (non-streaming)"
+	@echo "    make invoke-stream  Invoke with plain text streaming"
+	@echo "    make invoke-agui    Invoke with AG-UI protocol streaming"
 	@echo "                     Usage: make invoke INPUT=<msg> [SESSION_ID=<id>] [USER_ID=<id>]"
 	@echo ""
 	@echo "  Utilities"
@@ -95,7 +97,27 @@ invoke: aws-auth
 	@if [ -z "$(SESSION_ID)" ] || [ -z "$(USER_ID)" ]; then \
 		echo " Note: SESSION_ID and USER_ID not provided. Using defaults (memory won't persist across invocations)."; \
 	fi
-	uv run python -c "from scripts.invoke import main; main('$(INPUT)', $(if $(SESSION_ID),'$(SESSION_ID)',None), $(if $(USER_ID),'$(USER_ID)',None))"
+	uv run python -c "from scripts.invoke import main; main('$(INPUT)', $(if $(SESSION_ID),'$(SESSION_ID)',None), $(if $(USER_ID),'$(USER_ID)',None), stream=False)"
+
+invoke-stream: aws-auth
+	@if [ -z "$(INPUT)" ]; then \
+		echo "Usage: make invoke-stream INPUT=<msg> [SESSION_ID=<id>] [USER_ID=<id>]"; \
+		exit 1; \
+	fi
+	@if [ -z "$(SESSION_ID)" ] || [ -z "$(USER_ID)" ]; then \
+		echo " Note: SESSION_ID and USER_ID not provided. Using defaults (memory won't persist across invocations)."; \
+	fi
+	uv run python -c "from scripts.invoke import main; main('$(INPUT)', $(if $(SESSION_ID),'$(SESSION_ID)',None), $(if $(USER_ID),'$(USER_ID)',None), stream=True)"
+
+invoke-agui: aws-auth
+	@if [ -z "$(INPUT)" ]; then \
+		echo "Usage: make invoke-agui INPUT=<msg> [SESSION_ID=<id>] [USER_ID=<id>]"; \
+		exit 1; \
+	fi
+	@if [ -z "$(SESSION_ID)" ] || [ -z "$(USER_ID)" ]; then \
+		echo " Note: SESSION_ID and USER_ID not provided. Using defaults (memory won't persist across invocations)."; \
+	fi
+	uv run python -c "from scripts.invoke import main; main('$(INPUT)', $(if $(SESSION_ID),'$(SESSION_ID)',None), $(if $(USER_ID),'$(USER_ID)',None), stream_agui=True)"
 
 clean:
 	find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
