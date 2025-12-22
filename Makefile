@@ -1,4 +1,4 @@
-.PHONY: help setup sync lint format fix build start restart down logs dev local deploy invoke invoke-stream invoke-agui clean aws-auth
+.PHONY: help setup sync lint format fix build start restart down logs dev local deploy invoke invoke-stream invoke-agui chat clean aws-auth
 
 help:
 	@echo "Available commands:"
@@ -25,12 +25,13 @@ help:
 	@echo "    make local       Run agent locally (in-memory state)"
 	@echo "    make local MEMORY_ID=<id>  Run with AWS AgentCore Memory"
 	@echo ""
-	@echo "  Deployment"
-	@echo "    make deploy      Deploy to AWS with CDK"
-	@echo "    make invoke      Invoke deployed agent (non-streaming)"
+	@echo "  Deployment & Invocation"
+	@echo "    make deploy         Deploy to AWS with CDK"
+	@echo "    make invoke         Invoke deployed agent (non-streaming)"
 	@echo "    make invoke-stream  Invoke with plain text streaming"
 	@echo "    make invoke-agui    Invoke with AG-UI protocol streaming"
-	@echo "                     Usage: make invoke INPUT=<msg> [SESSION_ID=<id>] [USER_ID=<id>]"
+	@echo "    make chat           Interactive streaming chat (local)"
+	@echo "                        Usage: make invoke INPUT=<msg> [SESSION_ID=<id>] [USER_ID=<id>]"
 	@echo ""
 	@echo "  Utilities"
 	@echo "    make clean       Clean cache files"
@@ -118,6 +119,10 @@ invoke-agui: aws-auth
 		echo " Note: SESSION_ID and USER_ID not provided. Using defaults (memory won't persist across invocations)."; \
 	fi
 	uv run python -c "from scripts.invoke import main; main('$(INPUT)', $(if $(SESSION_ID),'$(SESSION_ID)',None), $(if $(USER_ID),'$(USER_ID)',None), stream_agui=True)"
+
+chat:
+	@echo "Starting interactive chat (make sure local server is running with 'make local')"
+	./scripts/chat_stream.sh --default
 
 clean:
 	find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
