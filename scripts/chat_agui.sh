@@ -15,6 +15,7 @@ BASE_URL="http://localhost:8000"
 ENDPOINT=""
 SESSION_ID=""
 USER_ID=""
+MODE="agui"  # agui, stream, sync
 
 # === UTILITY FUNCTIONS ===
 
@@ -24,34 +25,52 @@ cleanup() {
 }
 
 show_help() {
-    echo -e "${BOLD}${BLUE}AG-UI Streaming Chat${RESET}"
+    echo -e "${BOLD}${BLUE}Agent Chat Script${RESET}"
     echo -e "${YELLOW}Usage: $0 --endpoint=NAME [OPTIONS]${RESET}"
     echo -e "\n${YELLOW}Required:${RESET}"
     echo -e "  ${GREEN}--endpoint=NAME${RESET}       Endpoint to chat with (e.g., stream-forecasting)"
     echo -e "\n${YELLOW}Options:${RESET}"
+    echo -e "  ${GREEN}--mode=MODE${RESET}           Response mode: agui (default), stream, sync"
     echo -e "  ${GREEN}--session-id=ID${RESET}       Session ID for memory persistence"
     echo -e "  ${GREEN}--user-id=ID${RESET}          User ID"
     echo -e "  ${GREEN}--url=URL${RESET}             Base URL (default: localhost:8000)"
     echo -e "  ${GREEN}--default${RESET}             Use default settings (skip prompts)"
     echo -e "  ${GREEN}--help, -h${RESET}            Show this help"
+    echo -e "\n${YELLOW}Modes:${RESET}"
+    echo -e "  ${GREEN}agui${RESET}    AG-UI protocol streaming (tool calls, structured output)"
+    echo -e "  ${GREEN}stream${RESET}  Plain text streaming"
+    echo -e "  ${GREEN}sync${RESET}    Non-streaming JSON response"
     echo -e "\n${YELLOW}Examples:${RESET}"
     echo -e "  ${CYAN}$0 --endpoint=stream-forecasting${RESET}"
-    echo -e "  ${CYAN}$0 --endpoint=stream-forecasting --default${RESET}"
-    echo -e "  ${CYAN}$0 --endpoint=stream-forecasting --session-id=my-session${RESET}"
+    echo -e "  ${CYAN}$0 --endpoint=stream-forecasting --mode=stream${RESET}"
+    echo -e "  ${CYAN}$0 --endpoint=stream-forecasting --mode=sync --default${RESET}"
     exit 0
 }
 
 # === API HELPERS ===
 
-make_streaming_request() {
+make_request() {
     local message="$1"
+    
+    local stream_agui="false"
+    local stream="false"
+    
+    case "$MODE" in
+        agui)
+            stream_agui="true"
+            ;;
+        stream)
+            stream="true"
+            ;;
+    esac
     
     local request_body=$(cat <<EOF
 {
   "input": "$message",
   "session_id": "$SESSION_ID",
   "user_id": "$USER_ID",
-  "stream_agui": true
+  "stream_agui": $stream_agui,
+  "stream": $stream
 }
 EOF
 )
@@ -64,7 +83,7 @@ EOF
 
 # === RESPONSE PROCESSING ===
 
-process_streaming_response() {
+process_agui_response() {
     local message="$1"
 
     echo -e "\n${WHITE}${BOLD}You:${RESET} ${message}\n"
@@ -76,7 +95,7 @@ process_streaming_response() {
     local current_tool_name=""
     local tool_args_buffer=""
 
-    make_streaming_request "$message" | while IFS= read -r raw_line; do
+    make_request "$message" | while IFS= read -r raw_line; do
         if [[ "$raw_line" == data:* ]]; then
             local line="${raw_line#data: }"
         else
@@ -89,7 +108,6 @@ process_streaming_response() {
                 
                 case "$event_type" in
                     "RUN_STARTED")
-                        local run_id=$(echo "$line" | jq -r '.runId // "unknown"')
                         echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
                         echo -e "${BLUE}│${RESET} ${WHITE}${BOLD}Run Started${RESET}"
                         echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}\n"
@@ -177,6 +195,67 @@ process_streaming_response() {
     echo -e "\n${YELLOW}⚡ Completed in ${elapsed}s${RESET}\n"
 }
 
+process_stream_response() {
+    local message="$1"
+
+    echo -e "\n${WHITE}${BOLD}You:${RESET} ${message}\n"
+
+    local start_time=$(date +%s.%N)
+
+    echo -e "${GREEN}${BOLD}💬 Assistant:${RESET}"
+    
+    make_request "$message" | while IFS= read -r chunk; do
+        printf "${WHITE}%s${RESET}" "$chunk"
+    done
+    
+    echo ""
+
+    local end_time=$(date +%s.%N)
+    local elapsed=$(echo "$end_time - $start_time" | bc 2>/dev/null || echo "N/A")
+    echo -e "\n${YELLOW}⚡ Completed in ${elapsed}s${RESET}\n"
+}
+
+process_sync_response() {
+    local message="$1"
+
+    echo -e "\n${WHITE}${BOLD}You:${RESET} ${message}\n"
+
+    local start_time=$(date +%s.%N)
+
+    local response=$(make_request "$message")
+    
+    echo -e "${GREEN}${BOLD}💬 Assistant:${RESET}"
+    
+    local content=$(echo "$response" | jq -r '.content // ""')
+    echo -e "${WHITE}${content}${RESET}"
+    
+    local structured=$(echo "$response" | jq -r '.structured_output // null')
+    if [ "$structured" != "null" ] && [ -n "$structured" ]; then
+        echo -e "\n${MAGENTA}${BOLD}📊 Structured Output:${RESET}"
+        echo "$structured" | jq -C '.'
+    fi
+
+    local end_time=$(date +%s.%N)
+    local elapsed=$(echo "$end_time - $start_time" | bc 2>/dev/null || echo "N/A")
+    echo -e "\n${YELLOW}⚡ Completed in ${elapsed}s${RESET}\n"
+}
+
+process_response() {
+    local message="$1"
+    
+    case "$MODE" in
+        agui)
+            process_agui_response "$message"
+            ;;
+        stream)
+            process_stream_response "$message"
+            ;;
+        sync)
+            process_sync_response "$message"
+            ;;
+    esac
+}
+
 # === SETUP FUNCTIONS ===
 
 setup_environment() {
@@ -250,7 +329,7 @@ run_interactive_chat() {
             continue
         fi
 
-        process_streaming_response "$MESSAGE"
+        process_response "$MESSAGE"
     done
 }
 
@@ -260,6 +339,10 @@ while [[ $# -gt 0 ]]; do
     case $1 in
         --endpoint=*)
             ENDPOINT="${1#*=}"
+            shift
+            ;;
+        --mode=*)
+            MODE="${1#*=}"
             shift
             ;;
         --session-id=*)
@@ -294,8 +377,19 @@ if [ -z "$ENDPOINT" ]; then
     exit 1
 fi
 
-echo -e "${BOLD}${BLUE}🤖 AG-UI Streaming Chat${RESET}"
-echo -e "${CYAN}Endpoint: ${WHITE}${ENDPOINT}${RESET}\n"
+# Validate mode
+case "$MODE" in
+    agui|stream|sync)
+        ;;
+    *)
+        echo -e "${RED}Error: Invalid mode '$MODE'. Use: agui, stream, or sync${RESET}"
+        exit 1
+        ;;
+esac
+
+echo -e "${BOLD}${BLUE}🤖 Agent Chat${RESET}"
+echo -e "${CYAN}Endpoint: ${WHITE}${ENDPOINT}${RESET}"
+echo -e "${CYAN}Mode: ${WHITE}${MODE}${RESET}\n"
 
 trap cleanup INT TERM EXIT
 
