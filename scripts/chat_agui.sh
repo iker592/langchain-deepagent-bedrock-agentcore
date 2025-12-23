@@ -11,7 +11,10 @@ BOLD=$(tput bold)
 RESET=$(tput sgr0)
 
 USE_DEFAULTS=false
-BASE_URL="http://localhost:8080"
+BASE_URL="http://localhost:8000"
+ENDPOINT=""
+SESSION_ID=""
+USER_ID=""
 
 # === UTILITY FUNCTIONS ===
 
@@ -20,24 +23,40 @@ cleanup() {
     exit 0
 }
 
+show_help() {
+    echo -e "${BOLD}${BLUE}AG-UI Streaming Chat${RESET}"
+    echo -e "${YELLOW}Usage: $0 --endpoint=NAME [OPTIONS]${RESET}"
+    echo -e "\n${YELLOW}Required:${RESET}"
+    echo -e "  ${GREEN}--endpoint=NAME${RESET}       Endpoint to chat with (e.g., stream-forecasting)"
+    echo -e "\n${YELLOW}Options:${RESET}"
+    echo -e "  ${GREEN}--session-id=ID${RESET}       Session ID for memory persistence"
+    echo -e "  ${GREEN}--user-id=ID${RESET}          User ID"
+    echo -e "  ${GREEN}--url=URL${RESET}             Base URL (default: localhost:8000)"
+    echo -e "  ${GREEN}--default${RESET}             Use default settings (skip prompts)"
+    echo -e "  ${GREEN}--help, -h${RESET}            Show this help"
+    echo -e "\n${YELLOW}Examples:${RESET}"
+    echo -e "  ${CYAN}$0 --endpoint=stream-forecasting${RESET}"
+    echo -e "  ${CYAN}$0 --endpoint=stream-forecasting --default${RESET}"
+    echo -e "  ${CYAN}$0 --endpoint=stream-forecasting --session-id=my-session${RESET}"
+    exit 0
+}
+
 # === API HELPERS ===
 
 make_streaming_request() {
     local message="$1"
-    local session_id="$2"
-    local user_id="$3"
-
+    
     local request_body=$(cat <<EOF
 {
   "input": "$message",
-  "session_id": "$session_id",
-  "user_id": "$user_id",
+  "session_id": "$SESSION_ID",
+  "user_id": "$USER_ID",
   "stream_agui": true
 }
 EOF
 )
 
-    curl -s --no-buffer -X POST "$BASE_URL/invocations" \
+    curl -s --no-buffer -X POST "$BASE_URL/$ENDPOINT" \
         -H 'Content-Type: application/json' \
         -H 'Accept: text/event-stream' \
         -d "$request_body"
@@ -47,11 +66,8 @@ EOF
 
 process_streaming_response() {
     local message="$1"
-    local session_id="$2"
-    local user_id="$3"
 
-    echo -e "\n${CYAN}[$(date '+%H:%M:%S')]${RESET} ${MAGENTA}🤖 Analyst Agent${RESET}"
-    echo -e "${WHITE}${BOLD}You:${RESET} ${message}\n"
+    echo -e "\n${WHITE}${BOLD}You:${RESET} ${message}\n"
 
     local start_time=$(date +%s.%N)
     local in_text_stream=false
@@ -60,8 +76,7 @@ process_streaming_response() {
     local current_tool_name=""
     local tool_args_buffer=""
 
-    make_streaming_request "$message" "$session_id" "$user_id" | while IFS= read -r raw_line; do
-        # Handle server-sent events format (data: prefix)
+    make_streaming_request "$message" | while IFS= read -r raw_line; do
         if [[ "$raw_line" == data:* ]]; then
             local line="${raw_line#data: }"
         else
@@ -69,16 +84,14 @@ process_streaming_response() {
         fi
 
         if [ -n "$line" ] && [ "$line" != "" ]; then
-            # Try to parse as JSON
             if echo "$line" | jq -e . >/dev/null 2>&1; then
                 local event_type=$(echo "$line" | jq -r '.type // "unknown"')
                 
                 case "$event_type" in
                     "RUN_STARTED")
-                        local run_id=$(echo "$line" | jq -r '.run_id // "unknown"')
+                        local run_id=$(echo "$line" | jq -r '.runId // "unknown"')
                         echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
                         echo -e "${BLUE}│${RESET} ${WHITE}${BOLD}Run Started${RESET}"
-                        echo -e "${BLUE}│${RESET} ${CYAN}Session:${RESET} ${session_id}"
                         echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}\n"
                         ;;
 
@@ -110,7 +123,7 @@ process_streaming_response() {
 
                     "TOOL_CALL_START")
                         tool_call_active=true
-                        current_tool_name=$(echo "$line" | jq -r '.tool_call_name // "unknown"')
+                        current_tool_name=$(echo "$line" | jq -r '.toolCallName // "unknown"')
                         tool_args_buffer=""
                         echo -e "\n${YELLOW}┌─────────────────────────────────────────────────┐${RESET}"
                         echo -e "${YELLOW}│${RESET} ${MAGENTA}${BOLD}🔧 Tool Call:${RESET} ${WHITE}${current_tool_name}${RESET}"
@@ -173,7 +186,7 @@ setup_environment() {
     fi
 
     echo -e "${CYAN}Choose environment:${RESET}"
-    echo -e "  ${GREEN}1)${RESET} Localhost (default) - http://localhost:8080"
+    echo -e "  ${GREEN}1)${RESET} Localhost (default) - $BASE_URL"
     echo -e "  ${GREEN}2)${RESET} Custom URL"
     read -p "> " ENV_CHOICE
 
@@ -187,7 +200,7 @@ setup_environment() {
 
 setup_session() {
     if [ -n "$SESSION_ID" ]; then
-        echo -e "${YELLOW}Using session from env: ${SESSION_ID}${RESET}"
+        echo -e "${YELLOW}Using session: ${SESSION_ID}${RESET}"
     elif [ "$USE_DEFAULTS" = true ]; then
         SESSION_ID="session-$(uuidgen | tr '[:upper:]' '[:lower:]')"
         echo -e "${YELLOW}Generated session: ${SESSION_ID}${RESET}"
@@ -203,7 +216,7 @@ setup_session() {
 
 setup_user_id() {
     if [ -n "$USER_ID" ]; then
-        echo -e "${YELLOW}Using userId from env: ${USER_ID}${RESET}"
+        echo -e "${YELLOW}Using userId: ${USER_ID}${RESET}"
     elif [ "$USE_DEFAULTS" = true ]; then
         USER_ID="$(whoami)"
         echo -e "${YELLOW}Using username: ${USER_ID}${RESET}"
@@ -217,11 +230,11 @@ setup_user_id() {
     fi
 }
 
-# === MODE FUNCTIONS ===
+# === INTERACTIVE CHAT ===
 
-run_interactive_mode() {
+run_interactive_chat() {
     echo -e "\n${GREEN}🔄 Interactive Chat Mode${RESET}"
-    echo -e "${CYAN}Enter your messages (type 'exit' to quit)${RESET}"
+    echo -e "${CYAN}Type your messages (type 'exit' to quit)${RESET}"
 
     while true; do
         echo
@@ -237,89 +250,57 @@ run_interactive_mode() {
             continue
         fi
 
-        process_streaming_response "$MESSAGE" "$SESSION_ID" "$USER_ID"
+        process_streaming_response "$MESSAGE"
     done
-}
-
-run_single_message_mode() {
-    local message="$1"
-    process_streaming_response "$message" "$SESSION_ID" "$USER_ID"
 }
 
 # === MAIN EXECUTION ===
 
-SINGLE_MESSAGE=""
 while [[ $# -gt 0 ]]; do
     case $1 in
-        --default)
-            USE_DEFAULTS=true
+        --endpoint=*)
+            ENDPOINT="${1#*=}"
+            shift
+            ;;
+        --session-id=*)
+            SESSION_ID="${1#*=}"
+            shift
+            ;;
+        --user-id=*)
+            USER_ID="${1#*=}"
             shift
             ;;
         --url=*)
             BASE_URL="${1#*=}"
             shift
             ;;
-        -u)
-            BASE_URL="$2"
-            shift 2
-            ;;
-        --message=*)
-            SINGLE_MESSAGE="${1#*=}"
+        --default)
+            USE_DEFAULTS=true
             shift
-            ;;
-        -m)
-            SINGLE_MESSAGE="$2"
-            shift 2
-            ;;
-        --session=*)
-            SESSION_ID="${1#*=}"
-            shift
-            ;;
-        -s)
-            SESSION_ID="$2"
-            shift 2
             ;;
         --help|-h)
-            echo -e "${BOLD}${BLUE}AgentCore Streaming Chat${RESET}"
-            echo -e "${YELLOW}Usage: $0 [OPTIONS]${RESET}"
-            echo -e "\n${YELLOW}Options:${RESET}"
-            echo -e "  ${GREEN}--message=MSG, -m MSG${RESET}   Message to send"
-            echo -e "  ${GREEN}--session=ID, -s ID${RESET}     Session ID for memory"
-            echo -e "  ${GREEN}--url=URL, -u URL${RESET}       Base URL (default: localhost:8080)"
-            echo -e "  ${GREEN}--default${RESET}               Use default settings"
-            echo -e "  ${GREEN}--help, -h${RESET}              Show this help"
-            echo -e "\n${YELLOW}Examples:${RESET}"
-            echo -e "  ${CYAN}$0 'What is 25 * 4?'${RESET}"
-            echo -e "  ${CYAN}$0 -m 'Calculate 100 / 5' -s my-session${RESET}"
-            echo -e "  ${CYAN}$0 --default${RESET}                    # Interactive mode"
-            echo -e "\n${YELLOW}Environment Variables:${RESET}"
-            echo -e "  ${CYAN}SESSION_ID${RESET}   - Pre-set session ID"
-            echo -e "  ${CYAN}USER_ID${RESET}      - Pre-set user ID"
-            exit 0
+            show_help
             ;;
         *)
-            if [ -z "$SINGLE_MESSAGE" ]; then
-                SINGLE_MESSAGE="$1"
-            fi
-            shift
+            echo -e "${RED}Unknown argument: $1${RESET}"
+            show_help
             ;;
     esac
 done
 
-echo -e "${BOLD}${BLUE}📊 AgentCore Analyst Agent${RESET}"
-echo -e "${CYAN}Streaming chat with AG-UI protocol${RESET}\n"
+if [ -z "$ENDPOINT" ]; then
+    echo -e "${RED}Error: --endpoint is required${RESET}"
+    echo -e "${YELLOW}Example: $0 --endpoint=stream-forecasting${RESET}"
+    exit 1
+fi
+
+echo -e "${BOLD}${BLUE}🤖 AG-UI Streaming Chat${RESET}"
+echo -e "${CYAN}Endpoint: ${WHITE}${ENDPOINT}${RESET}\n"
 
 trap cleanup INT TERM EXIT
 
-# Setup
 setup_environment
 setup_session
 setup_user_id
 
-# Mode selection
-if [ -n "$SINGLE_MESSAGE" ]; then
-    run_single_message_mode "$SINGLE_MESSAGE"
-else
-    run_interactive_mode
-fi
-
+run_interactive_chat
