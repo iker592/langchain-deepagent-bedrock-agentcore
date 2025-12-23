@@ -48,11 +48,11 @@ def main(
                         if event_type == "TEXT_MESSAGE_CONTENT":
                             print(data.get("delta", ""), end="", flush=True)
                         elif event_type == "RUN_STARTED":
-                            print(f"[Run: {data.get('run_id')}]")
+                            print(f"[Run: {data.get('runId')}]")
                         elif event_type == "RUN_FINISHED":
                             print("\n[Run finished]")
                         elif event_type == "TOOL_CALL_START":
-                            print(f"\n[Tool: {data.get('tool_call_name')}]", end="")
+                            print(f"\n[Tool: {data.get('toolCallName')}]", end="")
                         elif event_type == "TOOL_CALL_RESULT":
                             print(f" -> {data.get('content', '')[:50]}...")
         else:
