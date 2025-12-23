@@ -122,7 +122,7 @@ invoke-agui: aws-auth
 
 chat:
 	@echo "Starting interactive chat (make sure local server is running with 'make local')"
-	./scripts/chat_stream.sh --default
+	uv run python -m yahoo_dsp_agent_sdk.chat --endpoint=invocations --default
 
 clean:
 	find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
