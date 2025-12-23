@@ -87,7 +87,7 @@ local:
 	MEMORY_ID=$(or $(MEMORY_ID),) \
 	uv run python -m agent.main
 
-deploy:
+deploy: aws-auth
 	uv run cdk deploy --require-approval never
 
 invoke: aws-auth

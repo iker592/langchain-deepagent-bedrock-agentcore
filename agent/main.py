@@ -1,9 +1,9 @@
+import json
 from logging import INFO, basicConfig, getLogger
 from uuid import uuid4
 
 from bedrock_agentcore import BedrockAgentCoreApp
 from yahoo_dsp_agent_sdk.agent import Agent
-from yahoo_dsp_agent_sdk.agui_bridge import StrandsToAGUIBridge
 
 from .agent import create_agent
 from .settings import Settings
@@ -35,21 +35,13 @@ async def invoke(payload, context):
 
     user_message = payload.get("input")
     thread_id = payload.get("thread_id", session_id)
-    run_id = f"{thread_id}_{user_id}"
+    config = {"thread_id": thread_id, "userId": user_id}
 
     if stream_agui:
 
         async def stream_agui_response():
-            bridge = StrandsToAGUIBridge()
-            yield bridge.start_run(thread_id, run_id).model_dump()
-            yield bridge.start_message().model_dump()
-
-            async for strands_event in agent.agent.stream_async(user_message):
-                for agui_event in bridge.convert_strands_event(strands_event):
-                    yield agui_event.model_dump()
-
-            yield bridge.end_message().model_dump()
-            yield bridge.finish_run(thread_id, run_id).model_dump()
+            async for sse_event in agent.stream_with_agui_bridge(user_message, config):
+                yield decode_sse(sse_event)
 
         return stream_agui_response()
 
@@ -64,13 +56,22 @@ async def invoke(payload, context):
         return stream_response()
 
     structured_output, response = agent.invoke(user_message)
-    content = str(response) if response else structured_output
+    content = str(response) if response else None
     logger.info(f"Response: {content}")
     return {
         "content": content,
+        "structured_output": structured_output,
         "session_id": session_id,
         "user_id": user_id,
     }
+
+
+def decode_sse(sse_data: str | bytes) -> dict:
+    """Decode SSE 'data: {...}\\n\\n' format back to dict."""
+    if isinstance(sse_data, bytes):
+        sse_data = sse_data.decode("utf-8")
+    json_str = sse_data.removeprefix("data: ").rstrip("\n")
+    return json.loads(json_str)
 
 
 if __name__ == "__main__":
