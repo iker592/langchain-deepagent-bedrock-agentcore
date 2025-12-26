@@ -16,6 +16,7 @@ def main(
     user_id: str | None = None,
     stream: bool = False,
     stream_agui: bool = False,
+    endpoint: str | None = None,
 ):
     settings = Settings()
     session_id = session_id or DEFAULT_SESSION_ID
@@ -25,6 +26,8 @@ def main(
     if not runtime_arn:
         raise ValueError("AGENT_RUNTIME_ARN not set. Deploy first or set manually.")
 
+    endpoint = endpoint or os.environ.get("AGENT_ENDPOINT")
+
     body = {
         "input": input,
         "user_id": user_id,
@@ -33,11 +36,16 @@ def main(
         "stream_agui": stream_agui,
     }
     client = boto3.client("bedrock-agentcore", region_name=settings.aws_region)
-    response = client.invoke_agent_runtime(
-        agentRuntimeArn=runtime_arn,
-        runtimeSessionId=session_id,
-        payload=json.dumps(body),
-    )
+
+    invoke_params = {
+        "agentRuntimeArn": runtime_arn,
+        "runtimeSessionId": session_id,
+        "payload": json.dumps(body),
+    }
+    if endpoint:
+        invoke_params["qualifier"] = endpoint
+
+    response = client.invoke_agent_runtime(**invoke_params)
 
     content_type = response.get("contentType", "")
 

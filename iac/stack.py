@@ -1,6 +1,5 @@
 import json
 from pathlib import Path
-from typing import Literal
 
 import boto3
 from aws_cdk import CfnOutput, Stack
@@ -11,27 +10,10 @@ from aws_cdk.aws_bedrock_agentcore_alpha import AgentRuntimeArtifact, Memory, Ru
 from botocore.exceptions import ClientError
 from constructs import Construct
 
-Environment = Literal["dev", "canary", "prod"]
-
-MODEL_BY_ENV: dict[Environment, str] = {
-    "dev": "bedrock:us.anthropic.claude-haiku-4-5-20251001-v1:0",
-    "canary": "bedrock:global.anthropic.claude-sonnet-4-5-20250929-v1:0",
-    "prod": "bedrock:global.anthropic.claude-sonnet-4-5-20250929-v1:0",
-}
-
 
 class ServerlessDeepAgentStack(Stack):
-    def __init__(
-        self,
-        scope: Construct,
-        construct_id: str,
-        *,
-        environment: Environment = "dev",
-        **kwargs,
-    ) -> None:
+    def __init__(self, scope: Construct, construct_id: str, **kwargs) -> None:
         super().__init__(scope, construct_id, **kwargs)
-
-        self.env_name = environment
 
         if not self._is_transaction_search_active():
             self._enable_transaction_search()
@@ -40,17 +22,16 @@ class ServerlessDeepAgentStack(Stack):
             str(Path(__file__).parent.parent.resolve())
         )
 
-        memory = Memory(self, "Memory", memory_name=f"memory_{environment}")
+        memory = Memory(self, "Memory", memory_name="memory")
         runtime = Runtime(
             self,
             "DeepAgent",
-            runtime_name=f"deep_agent_{environment}",
+            runtime_name="deep_agent",
             agent_runtime_artifact=deepagent_runtime_artifact,
             environment_variables={
                 "AWS_REGION": self.region,
                 "MEMORY_ID": memory.memory_id,
-                "MODEL": MODEL_BY_ENV[environment],
-                "ENVIRONMENT": environment,
+                "MODEL": "bedrock:global.anthropic.claude-sonnet-4-5-20250929-v1:0",
             },
         )
 
@@ -79,10 +60,18 @@ class ServerlessDeepAgentStack(Stack):
         memory.grant_read_short_term_memory(runtime)
         memory.grant_write(runtime)
 
+        dev_endpoint = runtime.add_endpoint(
+            "dev", description="Development endpoint - always latest version"
+        )
+        canary_endpoint = runtime.add_endpoint(
+            "canary", description="Canary endpoint for pre-prod testing"
+        )
+        prod_endpoint = runtime.add_endpoint("prod", description="Production endpoint")
+
         cross_account_role = iam.Role(
             self,
             "AgentCoreInvokeRole",
-            role_name=f"AgentCoreInvokeRole-{environment}",
+            role_name="AgentCoreInvokeRole",
             assumed_by=iam.AccountPrincipal("864830204113"),  # type: ignore[arg-type]
         )
         cross_account_role.add_to_policy(
@@ -96,10 +85,16 @@ class ServerlessDeepAgentStack(Stack):
         )
 
         CfnOutput(self, "RuntimeArn", value=runtime.agent_runtime_arn)
-        CfnOutput(self, "RuntimeName", value=runtime.agent_runtime_id)
+        CfnOutput(self, "RuntimeId", value=runtime.agent_runtime_id)
         CfnOutput(self, "MemoryId", value=memory.memory_id)
         CfnOutput(self, "CrossAccountRoleArn", value=cross_account_role.role_arn)
-        CfnOutput(self, "Environment", value=environment)
+        CfnOutput(self, "DevEndpointArn", value=dev_endpoint.agent_runtime_endpoint_arn)
+        CfnOutput(
+            self, "CanaryEndpointArn", value=canary_endpoint.agent_runtime_endpoint_arn
+        )
+        CfnOutput(
+            self, "ProdEndpointArn", value=prod_endpoint.agent_runtime_endpoint_arn
+        )
 
     def _is_transaction_search_active(self) -> bool:
         try:
