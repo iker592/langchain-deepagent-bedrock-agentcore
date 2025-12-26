@@ -27,6 +27,8 @@ project-includes = [
 dev = [
     "bedrock-agentcore-starter-toolkit>=0.2.2",
     "ruff>=0.14.8",
+    "pytest>=8.0.0",
+    "pytest-cov>=4.0.0",
 ]
 
 [[tool.uv.index]]
@@ -42,3 +44,11 @@ select = [
     "SIM",
     "I",
 ]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "unit: marks tests as unit tests",
+    "e2e: marks tests as end-to-end tests",
+]
+addopts = "-v"

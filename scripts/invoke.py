@@ -1,4 +1,5 @@
 import json
+import os
 import uuid
 
 import boto3
@@ -20,6 +21,10 @@ def main(
     session_id = session_id or DEFAULT_SESSION_ID
     user_id = user_id or DEFAULT_USER_ID
 
+    runtime_arn = os.environ.get("AGENT_RUNTIME_ARN") or settings.agent_runtime_arn
+    if not runtime_arn:
+        raise ValueError("AGENT_RUNTIME_ARN not set. Deploy first or set manually.")
+
     body = {
         "input": input,
         "user_id": user_id,
@@ -29,7 +34,7 @@ def main(
     }
     client = boto3.client("bedrock-agentcore", region_name=settings.aws_region)
     response = client.invoke_agent_runtime(
-        agentRuntimeArn=settings.agent_runtime_arn,
+        agentRuntimeArn=runtime_arn,
         runtimeSessionId=session_id,
         payload=json.dumps(body),
     )
