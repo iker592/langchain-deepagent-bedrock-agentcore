@@ -86,10 +86,10 @@ class ServerlessDeepAgentStack(Stack):
             response = xray_client.get_trace_segment_destination()
             is_active = response.get("Status") == "ACTIVE"
             if is_active:
-                print("✅ Transaction Search already active, skipping policy creation")
+                print("Transaction Search already active, skipping policy creation")
             return is_active
         except ClientError as e:
-            print(f"⚠️ Could not check Transaction Search status: {e}")
+            print(f"Could not check Transaction Search status: {e}")
             return False
 
     def _enable_transaction_search(self):
