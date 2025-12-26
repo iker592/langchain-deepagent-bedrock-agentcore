@@ -1,14 +1,22 @@
+import json
 from pathlib import Path
 
+import boto3
 from aws_cdk import CfnOutput, Stack
 from aws_cdk import aws_iam as iam
+from aws_cdk import aws_logs as logs
+from aws_cdk import aws_xray as xray
 from aws_cdk.aws_bedrock_agentcore_alpha import AgentRuntimeArtifact, Memory, Runtime
+from botocore.exceptions import ClientError
 from constructs import Construct
 
 
 class ServerlessDeepAgentStack(Stack):
     def __init__(self, scope: Construct, construct_id: str, **kwargs) -> None:
         super().__init__(scope, construct_id, **kwargs)
+
+        if not self._is_transaction_search_active():
+            self._enable_transaction_search()
 
         deepagent_runtime_artifact = AgentRuntimeArtifact.from_asset(
             str(Path(__file__).parent.parent.resolve())
@@ -71,3 +79,70 @@ class ServerlessDeepAgentStack(Stack):
         CfnOutput(self, "RuntimeName", value=runtime.agent_runtime_id)
         CfnOutput(self, "MemoryId", value=memory.memory_id)
         CfnOutput(self, "CrossAccountRoleArn", value=cross_account_role.role_arn)
+
+    def _is_transaction_search_active(self) -> bool:
+        try:
+            xray_client = boto3.client("xray", region_name="us-east-1")
+            response = xray_client.get_trace_segment_destination()
+            is_active = response.get("Status") == "ACTIVE"
+            if is_active:
+                print("Transaction Search already active, skipping policy creation")
+            return is_active
+        except ClientError as e:
+            print(f"Could not check Transaction Search status: {e}")
+            return False
+
+    def _enable_transaction_search(self):
+        logs.CfnResourcePolicy(
+            self,
+            "XRayLogsResourcePolicy",
+            policy_name="XRaySpansResourcePolicy",
+            policy_document=json.dumps(
+                {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                        {
+                            "Sid": "AllowXRayToWriteLogs",
+                            "Effect": "Allow",
+                            "Principal": {"Service": "xray.amazonaws.com"},
+                            "Action": [
+                                "logs:CreateLogGroup",
+                                "logs:CreateLogStream",
+                                "logs:PutLogEvents",
+                            ],
+                            "Resource": (
+                                f"arn:aws:logs:{self.region}:{self.account}:log-group:aws/spans:*"
+                            ),
+                        }
+                    ],
+                }
+            ),
+        )
+
+        xray.CfnResourcePolicy(
+            self,
+            "TransactionSearchConfig",
+            policy_name="AWSTransactionSearchConfiguration",
+            policy_document=json.dumps(
+                {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                        {
+                            "Sid": "TransactionSearchIndexing",
+                            "Effect": "Allow",
+                            "Principal": "*",
+                            "Action": ["xray:IndexSpans"],
+                            "Resource": "*",
+                            "Condition": {
+                                "StringEquals": {
+                                    "xray:IndexingStrategy": "Probabilistic"
+                                },
+                                "NumericLessThanEquals": {
+                                    "xray:ProbabilisticRate": 0.01
+                                },
+                            },
+                        }
+                    ],
+                }
+            ),
+        )
