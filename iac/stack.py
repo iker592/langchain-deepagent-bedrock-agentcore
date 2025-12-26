@@ -3,6 +3,7 @@ from pathlib import Path
 
 import boto3
 from aws_cdk import CfnOutput, Stack
+from aws_cdk import aws_bedrockagentcore as agentcore
 from aws_cdk import aws_iam as iam
 from aws_cdk import aws_logs as logs
 from aws_cdk import aws_xray as xray
@@ -60,13 +61,27 @@ class ServerlessDeepAgentStack(Stack):
         memory.grant_read_short_term_memory(runtime)
         memory.grant_write(runtime)
 
-        dev_endpoint = runtime.add_endpoint(
-            "dev", description="Development endpoint - always latest version"
+        dev_endpoint = agentcore.CfnRuntimeEndpoint(
+            self,
+            "DevEndpoint",
+            agent_runtime_id=runtime.agent_runtime_id,
+            name="dev",
+            description="Development endpoint - always latest version",
         )
-        canary_endpoint = runtime.add_endpoint(
-            "canary", description="Canary endpoint for pre-prod testing"
+        canary_endpoint = agentcore.CfnRuntimeEndpoint(
+            self,
+            "CanaryEndpoint",
+            agent_runtime_id=runtime.agent_runtime_id,
+            name="canary",
+            description="Canary endpoint for pre-prod testing",
         )
-        prod_endpoint = runtime.add_endpoint("prod", description="Production endpoint")
+        prod_endpoint = agentcore.CfnRuntimeEndpoint(
+            self,
+            "ProdEndpoint",
+            agent_runtime_id=runtime.agent_runtime_id,
+            name="prod",
+            description="Production endpoint",
+        )
 
         cross_account_role = iam.Role(
             self,
@@ -88,12 +103,16 @@ class ServerlessDeepAgentStack(Stack):
         CfnOutput(self, "RuntimeId", value=runtime.agent_runtime_id)
         CfnOutput(self, "MemoryId", value=memory.memory_id)
         CfnOutput(self, "CrossAccountRoleArn", value=cross_account_role.role_arn)
-        CfnOutput(self, "DevEndpointArn", value=dev_endpoint.agent_runtime_endpoint_arn)
         CfnOutput(
-            self, "CanaryEndpointArn", value=canary_endpoint.agent_runtime_endpoint_arn
+            self, "DevEndpointArn", value=dev_endpoint.attr_agent_runtime_endpoint_arn
         )
         CfnOutput(
-            self, "ProdEndpointArn", value=prod_endpoint.agent_runtime_endpoint_arn
+            self,
+            "CanaryEndpointArn",
+            value=canary_endpoint.attr_agent_runtime_endpoint_arn,
+        )
+        CfnOutput(
+            self, "ProdEndpointArn", value=prod_endpoint.attr_agent_runtime_endpoint_arn
         )
 
     def _is_transaction_search_active(self) -> bool:

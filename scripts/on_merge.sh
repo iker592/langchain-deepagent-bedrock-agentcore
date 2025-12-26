@@ -24,19 +24,27 @@ VERSION=$(uv run python scripts/get_latest_version.py $RUNTIME_ID)
 echo "Deployed version: $VERSION"
 
 echo ""
-echo "Step 5: Run E2E tests on dev endpoint..."
+echo "Step 5: Update dev endpoint to version $VERSION..."
+aws bedrock-agentcore-control update-agent-runtime-endpoint \
+    --agent-runtime-id $RUNTIME_ID \
+    --endpoint-name dev \
+    --agent-runtime-version $VERSION \
+    --region us-east-1
+
+echo ""
+echo "Step 6: Run E2E tests on dev endpoint..."
 make test-e2e
 
 echo ""
-echo "Step 6: Promote canary to version $VERSION..."
-aws bedrock-agentcore update-agent-runtime-endpoint \
+echo "Step 7: Promote canary to version $VERSION..."
+aws bedrock-agentcore-control update-agent-runtime-endpoint \
     --agent-runtime-id $RUNTIME_ID \
     --endpoint-name canary \
     --agent-runtime-version $VERSION \
     --region us-east-1
 
 echo ""
-echo "Step 7: A/B test (mock)..."
+echo "Step 8: A/B test (mock)..."
 echo "A/B test executed here (mock)"
 echo "In production, this would:"
 echo "  - Monitor canary endpoint for errors"
@@ -45,8 +53,8 @@ echo "  - Run sample traffic through canary"
 sleep 2
 
 echo ""
-echo "Step 8: Promote prod to version $VERSION..."
-aws bedrock-agentcore update-agent-runtime-endpoint \
+echo "Step 9: Promote prod to version $VERSION..."
+aws bedrock-agentcore-control update-agent-runtime-endpoint \
     --agent-runtime-id $RUNTIME_ID \
     --endpoint-name prod \
     --agent-runtime-version $VERSION \
@@ -57,4 +65,3 @@ echo "========================================="
 echo "Deploy pipeline complete!"
 echo "All endpoints now on version $VERSION"
 echo "========================================="
-

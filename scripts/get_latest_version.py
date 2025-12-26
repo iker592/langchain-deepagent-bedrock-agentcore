@@ -4,9 +4,9 @@ import boto3
 
 
 def get_latest_version(runtime_id: str, region: str = "us-east-1") -> str:
-    client = boto3.client("bedrock-agentcore", region_name=region)
+    client = boto3.client("bedrock-agentcore-control", region_name=region)
     response = client.list_agent_runtime_versions(agentRuntimeId=runtime_id)
-    versions = response.get("agentRuntimeVersions", [])
+    versions = response.get("agentRuntimes", [])
     if not versions:
         raise ValueError(f"No versions found for runtime {runtime_id}")
     return versions[0]["agentRuntimeVersion"]
