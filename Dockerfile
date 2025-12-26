@@ -20,6 +20,7 @@ FROM --platform=linux/arm64 public.ecr.aws/docker/library/python:3.13-slim AS ru
 WORKDIR /app
 
 COPY --from=builder /usr/local/lib/python3.13/site-packages /usr/local/lib/python3.13/site-packages
+COPY --from=builder /usr/local/bin /usr/local/bin
 COPY ./agent /app/agent
 
 RUN useradd -m -u 1000 bedrock_agentcore
@@ -27,4 +28,4 @@ USER bedrock_agentcore
 
 EXPOSE 8080
 
-CMD ["python", "-m", "agent.main"]
+CMD ["opentelemetry-instrument", "python", "-m", "agent.main"]
