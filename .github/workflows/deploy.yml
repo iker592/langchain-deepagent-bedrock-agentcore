@@ -1,0 +1,160 @@
+name: Deploy Pipeline
+
+on:
+  push:
+    branches: [main]
+
+env:
+  AWS_REGION: us-east-1
+
+jobs:
+  lint-and-test:
+    name: Lint, Format & Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Lint and format
+        run: make fix
+
+      - name: Run unit tests
+        run: make test-unit
+
+  deploy-dev:
+    name: Deploy to Dev
+    needs: lint-and-test
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.get-version.outputs.version }}
+      runtime-id: ${{ steps.get-version.outputs.runtime-id }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Deploy CDK stack
+        run: uv run cdk deploy --require-approval never --outputs-file cdk-outputs.json
+
+      - name: Get latest version
+        id: get-version
+        run: |
+          RUNTIME_ID=$(cat cdk-outputs.json | jq -r '.ServerlessDeepAgentStack.RuntimeId')
+          VERSION=$(aws bedrock-agentcore list-agent-runtime-versions --agent-runtime-id $RUNTIME_ID --query 'agentRuntimeVersions[0].agentRuntimeVersion' --output text)
+          echo "runtime-id=$RUNTIME_ID" >> $GITHUB_OUTPUT
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Deployed version: $VERSION"
+
+      - name: Upload CDK outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: cdk-outputs
+          path: cdk-outputs.json
+
+  e2e-dev:
+    name: E2E Tests (Dev)
+    needs: deploy-dev
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Download CDK outputs
+        uses: actions/download-artifact@v4
+        with:
+          name: cdk-outputs
+
+      - name: Run E2E tests against dev endpoint
+        run: |
+          ARN=$(cat cdk-outputs.json | jq -r '.ServerlessDeepAgentStack.DevEndpointArn')
+          AGENT_RUNTIME_ARN=$ARN uv run pytest -m e2e
+
+  promote-canary:
+    name: Promote to Canary
+    needs: [deploy-dev, e2e-dev]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Update canary endpoint
+        run: |
+          echo "Promoting canary endpoint to version ${{ needs.deploy-dev.outputs.version }}"
+          aws bedrock-agentcore update-agent-runtime-endpoint \
+            --agent-runtime-id ${{ needs.deploy-dev.outputs.runtime-id }} \
+            --endpoint-name canary \
+            --agent-runtime-version ${{ needs.deploy-dev.outputs.version }}
+
+  canary-ab-test:
+    name: Canary A/B Test
+    needs: promote-canary
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run A/B test (mock)
+        run: |
+          echo "A/B test executed here (mock)"
+          echo "In production, this would:"
+          echo "  - Monitor canary endpoint for errors"
+          echo "  - Compare latency/error rates with prod"
+          echo "  - Run sample traffic through canary"
+          sleep 5
+
+  promote-prod:
+    name: Promote to Prod
+    needs: [deploy-dev, canary-ab-test]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Update prod endpoint
+        run: |
+          echo "Promoting prod endpoint to version ${{ needs.deploy-dev.outputs.version }}"
+          aws bedrock-agentcore update-agent-runtime-endpoint \
+            --agent-runtime-id ${{ needs.deploy-dev.outputs.runtime-id }} \
+            --endpoint-name prod \
+            --agent-runtime-version ${{ needs.deploy-dev.outputs.version }}
+
+      - name: Deployment complete
+        run: |
+          echo "Successfully deployed version ${{ needs.deploy-dev.outputs.version }} to all endpoints!"
+          echo "  - dev: v${{ needs.deploy-dev.outputs.version }}"
+          echo "  - canary: v${{ needs.deploy-dev.outputs.version }}"
+          echo "  - prod: v${{ needs.deploy-dev.outputs.version }}"
+
