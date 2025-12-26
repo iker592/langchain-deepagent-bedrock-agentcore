@@ -1,4 +1,4 @@
-.PHONY: help setup sync lint format fix build start restart down logs dev local deploy deploy-dev deploy-canary deploy-prod invoke invoke-stream invoke-agui chat clean aws-auth test test-unit test-e2e pipeline-dev pipeline-canary pipeline-prod
+.PHONY: help setup sync lint format fix build start restart down logs dev local deploy invoke invoke-stream invoke-agui chat clean aws-auth test test-unit test-e2e promote-canary promote-prod
 
 help:
 	@echo "Available commands:"
@@ -16,7 +16,7 @@ help:
 	@echo "  Testing"
 	@echo "    make test        Run all tests"
 	@echo "    make test-unit   Run unit tests only (before deploy)"
-	@echo "    make test-e2e    Run e2e tests (after deploy, needs AGENT_RUNTIME_ARN)"
+	@echo "    make test-e2e    Run e2e tests (uses dev endpoint by default)"
 	@echo ""
 	@echo "  Docker Development"
 	@echo "    make build       Build Docker image"
@@ -30,22 +30,18 @@ help:
 	@echo "    make local       Run agent locally (in-memory state)"
 	@echo "    make local MEMORY_ID=<id>  Run with AWS AgentCore Memory"
 	@echo ""
-	@echo "  Deployment Pipelines"
-	@echo "    make pipeline-dev     Run UTs -> deploy dev -> E2E tests"
-	@echo "    make pipeline-canary  Deploy canary -> E2E tests"
-	@echo "    make pipeline-prod    Deploy prod -> E2E tests"
+	@echo "  Deployment"
+	@echo "    make deploy      Deploy runtime (creates new version, dev endpoint auto-updates)"
 	@echo ""
-	@echo "  Individual Deployment"
-	@echo "    make deploy-dev       Deploy to dev environment"
-	@echo "    make deploy-canary    Deploy to canary environment"
-	@echo "    make deploy-prod      Deploy to prod environment"
+	@echo "  Endpoint Promotion"
+	@echo "    make promote-canary VERSION=N  Update canary endpoint to version N"
+	@echo "    make promote-prod VERSION=N    Update prod endpoint to version N"
 	@echo ""
 	@echo "  Invocation"
-	@echo "    make invoke         Invoke deployed agent (non-streaming)"
-	@echo "    make invoke-stream  Invoke with plain text streaming"
-	@echo "    make invoke-agui    Invoke with AG-UI protocol streaming"
-	@echo "    make chat           Interactive streaming chat (local)"
-	@echo "                        Usage: make invoke INPUT=<msg> [SESSION_ID=<id>] [USER_ID=<id>] [ENV=dev|canary|prod]"
+	@echo "    make invoke ENDPOINT=dev|canary|prod INPUT=<msg>"
+	@echo "    make invoke-stream ENDPOINT=dev|canary|prod INPUT=<msg>"
+	@echo "    make invoke-agui ENDPOINT=dev|canary|prod INPUT=<msg>"
+	@echo "    make chat        Interactive streaming chat (local)"
 	@echo ""
 	@echo "  Utilities"
 	@echo "    make clean       Clean cache files"
@@ -85,12 +81,12 @@ test-unit:
 	uv run pytest -m unit
 
 test-e2e: aws-auth
-	@if [ -z "$(AGENT_RUNTIME_ARN)" ]; then \
-		echo "Error: AGENT_RUNTIME_ARN is required for e2e tests"; \
-		echo "Usage: make test-e2e AGENT_RUNTIME_ARN=arn:aws:bedrock-agentcore:..."; \
+	$(eval ARN := $(shell cat cdk-outputs.json 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['ServerlessDeepAgentStack']['DevEndpointArn'])" 2>/dev/null || echo ""))
+	@if [ -z "$(ARN)" ]; then \
+		echo "Error: No deployment found. Run 'make deploy' first."; \
 		exit 1; \
 	fi
-	AGENT_RUNTIME_ARN=$(AGENT_RUNTIME_ARN) uv run pytest -m e2e
+	AGENT_RUNTIME_ARN=$(ARN) uv run pytest -m e2e
 
 build:
 	docker compose build
@@ -115,89 +111,80 @@ local:
 	MEMORY_ID=$(or $(MEMORY_ID),) \
 	uv run python -m agent.main
 
-deploy: deploy-dev
+deploy: aws-auth
+	@echo "Deploying runtime (creates new version)..."
+	uv run cdk deploy --require-approval never --outputs-file cdk-outputs.json
+	@echo ""
+	@echo "Deployment complete! Endpoints:"
+	@cat cdk-outputs.json | python3 -c "import sys,json; d=json.load(sys.stdin)['ServerlessDeepAgentStack']; print(f\"  dev:    {d['DevEndpointArn']}\"); print(f\"  canary: {d['CanaryEndpointArn']}\"); print(f\"  prod:   {d['ProdEndpointArn']}\")"
 
-deploy-dev: aws-auth
-	@echo "🚀 Deploying to DEV environment..."
-	uv run cdk deploy -c env=dev --require-approval never --outputs-file cdk-outputs-dev.json
+promote-canary: aws-auth
+	@if [ -z "$(VERSION)" ]; then \
+		echo "Usage: make promote-canary VERSION=N"; \
+		exit 1; \
+	fi
+	$(eval RUNTIME_ID := $(shell cat cdk-outputs.json | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['ServerlessDeepAgentStack']['RuntimeId'])"))
+	@echo "Promoting canary endpoint to version $(VERSION)..."
+	aws bedrock-agentcore update-agent-runtime-endpoint \
+		--agent-runtime-id $(RUNTIME_ID) \
+		--endpoint-name canary \
+		--agent-runtime-version $(VERSION) \
+		--region us-east-1
 
-deploy-canary: aws-auth
-	@echo "🚀 Deploying to CANARY environment..."
-	uv run cdk deploy -c env=canary --require-approval never --outputs-file cdk-outputs-canary.json
-
-deploy-prod: aws-auth
-	@echo "🚀 Deploying to PROD environment..."
-	uv run cdk deploy -c env=prod --require-approval never --outputs-file cdk-outputs-prod.json
-
-pipeline-dev: test-unit deploy-dev
-	@echo "🧪 Running E2E tests against DEV..."
-	$(eval ARN := $(shell cat cdk-outputs-dev.json | python -c "import sys,json; d=json.load(sys.stdin); print(list(d.values())[0]['RuntimeArn'])"))
-	AGENT_RUNTIME_ARN=$(ARN) $(MAKE) test-e2e
-	@echo "✅ DEV pipeline complete!"
-
-pipeline-canary: deploy-canary
-	@echo "🧪 Running E2E tests against CANARY..."
-	$(eval ARN := $(shell cat cdk-outputs-canary.json | python -c "import sys,json; d=json.load(sys.stdin); print(list(d.values())[0]['RuntimeArn'])"))
-	AGENT_RUNTIME_ARN=$(ARN) $(MAKE) test-e2e
-	@echo "✅ CANARY pipeline complete!"
-
-pipeline-prod: deploy-prod
-	@echo "🧪 Running E2E tests against PROD..."
-	$(eval ARN := $(shell cat cdk-outputs-prod.json | python -c "import sys,json; d=json.load(sys.stdin); print(list(d.values())[0]['RuntimeArn'])"))
-	AGENT_RUNTIME_ARN=$(ARN) $(MAKE) test-e2e
-	@echo "✅ PROD pipeline complete!"
-
-get-arn:
-	@if [ -z "$(ENV)" ]; then ENV=dev; fi
-	@cat cdk-outputs-$(ENV).json | python -c "import sys,json; d=json.load(sys.stdin); print(list(d.values())[0]['RuntimeArn'])"
+promote-prod: aws-auth
+	@if [ -z "$(VERSION)" ]; then \
+		echo "Usage: make promote-prod VERSION=N"; \
+		exit 1; \
+	fi
+	$(eval RUNTIME_ID := $(shell cat cdk-outputs.json | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['ServerlessDeepAgentStack']['RuntimeId'])"))
+	@echo "Promoting prod endpoint to version $(VERSION)..."
+	aws bedrock-agentcore update-agent-runtime-endpoint \
+		--agent-runtime-id $(RUNTIME_ID) \
+		--endpoint-name prod \
+		--agent-runtime-version $(VERSION) \
+		--region us-east-1
 
 invoke: aws-auth
 	@if [ -z "$(INPUT)" ]; then \
-		echo "Usage: make invoke INPUT=<msg> [SESSION_ID=<id>] [USER_ID=<id>] [ENV=dev|canary|prod]"; \
+		echo "Usage: make invoke INPUT=<msg> [ENDPOINT=dev|canary|prod] [SESSION_ID=<id>] [USER_ID=<id>]"; \
 		exit 1; \
 	fi
-	@if [ -z "$(SESSION_ID)" ] || [ -z "$(USER_ID)" ]; then \
-		echo " Note: SESSION_ID and USER_ID not provided. Using defaults (memory won't persist across invocations)."; \
-	fi
-	$(eval ENV := $(or $(ENV),dev))
-	$(eval ARN := $(shell cat cdk-outputs-$(ENV).json 2>/dev/null | python -c "import sys,json; d=json.load(sys.stdin); print(list(d.values())[0]['RuntimeArn'])" 2>/dev/null || echo ""))
+	$(eval ENDPOINT := $(or $(ENDPOINT),dev))
+	$(eval ARN := $(shell cat cdk-outputs.json 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['ServerlessDeepAgentStack']['RuntimeArn'])" 2>/dev/null || echo ""))
 	@if [ -z "$(ARN)" ]; then \
-		echo "Error: No deployment found for ENV=$(ENV). Run 'make deploy-$(ENV)' first."; \
+		echo "Error: No deployment found. Run 'make deploy' first."; \
 		exit 1; \
 	fi
-	AGENT_RUNTIME_ARN=$(ARN) uv run python -c "from scripts.invoke import main; main('$(INPUT)', $(if $(SESSION_ID),'$(SESSION_ID)',None), $(if $(USER_ID),'$(USER_ID)',None), stream=False)"
+	@echo "Invoking $(ENDPOINT) endpoint..."
+	AGENT_RUNTIME_ARN=$(ARN) AGENT_ENDPOINT=$(ENDPOINT) uv run python -c "from scripts.invoke import main; main('$(INPUT)', $(if $(SESSION_ID),'$(SESSION_ID)',None), $(if $(USER_ID),'$(USER_ID)',None), stream=False, endpoint='$(ENDPOINT)')"
 
 invoke-stream: aws-auth
 	@if [ -z "$(INPUT)" ]; then \
-		echo "Usage: make invoke-stream INPUT=<msg> [SESSION_ID=<id>] [USER_ID=<id>] [ENV=dev|canary|prod]"; \
+		echo "Usage: make invoke-stream INPUT=<msg> [ENDPOINT=dev|canary|prod] [SESSION_ID=<id>] [USER_ID=<id>]"; \
 		exit 1; \
 	fi
-	@if [ -z "$(SESSION_ID)" ] || [ -z "$(USER_ID)" ]; then \
-		echo " Note: SESSION_ID and USER_ID not provided. Using defaults (memory won't persist across invocations)."; \
-	fi
-	$(eval ENV := $(or $(ENV),dev))
-	$(eval ARN := $(shell cat cdk-outputs-$(ENV).json 2>/dev/null | python -c "import sys,json; d=json.load(sys.stdin); print(list(d.values())[0]['RuntimeArn'])" 2>/dev/null || echo ""))
+	$(eval ENDPOINT := $(or $(ENDPOINT),dev))
+	$(eval ARN := $(shell cat cdk-outputs.json 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['ServerlessDeepAgentStack']['RuntimeArn'])" 2>/dev/null || echo ""))
 	@if [ -z "$(ARN)" ]; then \
-		echo "Error: No deployment found for ENV=$(ENV). Run 'make deploy-$(ENV)' first."; \
+		echo "Error: No deployment found. Run 'make deploy' first."; \
 		exit 1; \
 	fi
-	AGENT_RUNTIME_ARN=$(ARN) uv run python -c "from scripts.invoke import main; main('$(INPUT)', $(if $(SESSION_ID),'$(SESSION_ID)',None), $(if $(USER_ID),'$(USER_ID)',None), stream=True)"
+	@echo "Invoking $(ENDPOINT) endpoint (streaming)..."
+	AGENT_RUNTIME_ARN=$(ARN) AGENT_ENDPOINT=$(ENDPOINT) uv run python -c "from scripts.invoke import main; main('$(INPUT)', $(if $(SESSION_ID),'$(SESSION_ID)',None), $(if $(USER_ID),'$(USER_ID)',None), stream=True, endpoint='$(ENDPOINT)')"
 
 invoke-agui: aws-auth
 	@if [ -z "$(INPUT)" ]; then \
-		echo "Usage: make invoke-agui INPUT=<msg> [SESSION_ID=<id>] [USER_ID=<id>] [ENV=dev|canary|prod]"; \
+		echo "Usage: make invoke-agui INPUT=<msg> [ENDPOINT=dev|canary|prod] [SESSION_ID=<id>] [USER_ID=<id>]"; \
 		exit 1; \
 	fi
-	@if [ -z "$(SESSION_ID)" ] || [ -z "$(USER_ID)" ]; then \
-		echo " Note: SESSION_ID and USER_ID not provided. Using defaults (memory won't persist across invocations)."; \
-	fi
-	$(eval ENV := $(or $(ENV),dev))
-	$(eval ARN := $(shell cat cdk-outputs-$(ENV).json 2>/dev/null | python -c "import sys,json; d=json.load(sys.stdin); print(list(d.values())[0]['RuntimeArn'])" 2>/dev/null || echo ""))
+	$(eval ENDPOINT := $(or $(ENDPOINT),dev))
+	$(eval ARN := $(shell cat cdk-outputs.json 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['ServerlessDeepAgentStack']['RuntimeArn'])" 2>/dev/null || echo ""))
 	@if [ -z "$(ARN)" ]; then \
-		echo "Error: No deployment found for ENV=$(ENV). Run 'make deploy-$(ENV)' first."; \
+		echo "Error: No deployment found. Run 'make deploy' first."; \
 		exit 1; \
 	fi
-	AGENT_RUNTIME_ARN=$(ARN) uv run python -c "from scripts.invoke import main; main('$(INPUT)', $(if $(SESSION_ID),'$(SESSION_ID)',None), $(if $(USER_ID),'$(USER_ID)',None), stream_agui=True)"
+	@echo "Invoking $(ENDPOINT) endpoint (AG-UI streaming)..."
+	AGENT_RUNTIME_ARN=$(ARN) AGENT_ENDPOINT=$(ENDPOINT) uv run python -c "from scripts.invoke import main; main('$(INPUT)', $(if $(SESSION_ID),'$(SESSION_ID)',None), $(if $(USER_ID),'$(USER_ID)',None), stream_agui=True, endpoint='$(ENDPOINT)')"
 
 chat:
 	@echo "Starting interactive chat (make sure local server is running with 'make local')"
@@ -208,4 +195,4 @@ clean:
 	find . -type d -name ".pytest_cache" -exec rm -rf {} + 2>/dev/null || true
 	find . -type d -name ".ruff_cache" -exec rm -rf {} + 2>/dev/null || true
 	find . -type f -name "*.pyc" -delete 2>/dev/null || true
-
+	rm -f cdk-outputs*.json 2>/dev/null || true
