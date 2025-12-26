@@ -21,3 +21,8 @@ def deployed_runtime_arn():
     if not arn:
         pytest.skip("AGENT_RUNTIME_ARN not set - skipping e2e test")
     return arn
+
+
+@pytest.fixture
+def agent_endpoint():
+    return os.environ.get("AGENT_ENDPOINT", "dev")

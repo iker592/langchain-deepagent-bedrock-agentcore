@@ -9,8 +9,9 @@ import pytest
 @pytest.mark.e2e
 class TestDeployedAgent:
     @pytest.fixture(autouse=True)
-    def setup(self, deployed_runtime_arn):
+    def setup(self, deployed_runtime_arn, agent_endpoint):
         self.runtime_arn = deployed_runtime_arn
+        self.endpoint = agent_endpoint
         self.region = os.environ.get("AWS_REGION", "us-east-1")
         self.client = boto3.client("bedrock-agentcore", region_name=self.region)
         self.session_id = f"e2e-test-{uuid.uuid4().hex}"
@@ -51,6 +52,7 @@ class TestDeployedAgent:
             agentRuntimeArn=self.runtime_arn,
             runtimeSessionId=self.session_id,
             payload=json.dumps(body),
+            qualifier=self.endpoint,
         )
 
         response_body = response["response"].read()
@@ -60,8 +62,9 @@ class TestDeployedAgent:
 @pytest.mark.e2e
 class TestDeployedAgentStreaming:
     @pytest.fixture(autouse=True)
-    def setup(self, deployed_runtime_arn):
+    def setup(self, deployed_runtime_arn, agent_endpoint):
         self.runtime_arn = deployed_runtime_arn
+        self.endpoint = agent_endpoint
         self.region = os.environ.get("AWS_REGION", "us-east-1")
         self.client = boto3.client("bedrock-agentcore", region_name=self.region)
         self.session_id = f"e2e-stream-{uuid.uuid4().hex}"
@@ -78,6 +81,7 @@ class TestDeployedAgentStreaming:
             agentRuntimeArn=self.runtime_arn,
             runtimeSessionId=self.session_id,
             payload=json.dumps(body),
+            qualifier=self.endpoint,
         )
 
         content_type = response.get("contentType", "")

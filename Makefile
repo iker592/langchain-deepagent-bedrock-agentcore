@@ -1,4 +1,4 @@
-.PHONY: help setup sync lint format fix build start restart down logs dev local deploy invoke invoke-stream invoke-agui chat clean aws-auth test test-unit test-e2e promote-canary promote-prod
+.PHONY: help setup sync lint format fix build start restart down logs dev local deploy invoke invoke-stream invoke-agui chat clean aws-auth test test-unit test-e2e promote-canary promote-prod get-latest-version promote-canary-latest promote-prod-latest pipeline-pr pipeline-merge
 
 help:
 	@echo "Available commands:"
@@ -36,6 +36,13 @@ help:
 	@echo "  Endpoint Promotion"
 	@echo "    make promote-canary VERSION=N  Update canary endpoint to version N"
 	@echo "    make promote-prod VERSION=N    Update prod endpoint to version N"
+	@echo "    make promote-canary-latest     Promote canary to latest version"
+	@echo "    make promote-prod-latest       Promote prod to latest version"
+	@echo "    make get-latest-version        Show latest deployed version"
+	@echo ""
+	@echo "  Pipeline Simulation"
+	@echo "    make pipeline-pr               Run PR checks (lint, test)"
+	@echo "    make pipeline-merge            Run full deploy pipeline"
 	@echo ""
 	@echo "  Invocation"
 	@echo "    make invoke ENDPOINT=dev|canary|prod INPUT=<msg>"
@@ -81,12 +88,13 @@ test-unit:
 	uv run pytest -m unit
 
 test-e2e: aws-auth
-	$(eval ARN := $(shell cat cdk-outputs.json 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['ServerlessDeepAgentStack']['DevEndpointArn'])" 2>/dev/null || echo ""))
+	$(eval ARN := $(shell cat cdk-outputs.json 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['ServerlessDeepAgentStack']['RuntimeArn'])" 2>/dev/null || echo ""))
+	$(eval ENDPOINT := $(or $(ENDPOINT),dev))
 	@if [ -z "$(ARN)" ]; then \
 		echo "Error: No deployment found. Run 'make deploy' first."; \
 		exit 1; \
 	fi
-	AGENT_RUNTIME_ARN=$(ARN) uv run pytest -m e2e
+	AGENT_RUNTIME_ARN=$(ARN) AGENT_ENDPOINT=$(ENDPOINT) uv run pytest -m e2e
 
 build:
 	docker compose build
@@ -125,7 +133,7 @@ promote-canary: aws-auth
 	fi
 	$(eval RUNTIME_ID := $(shell cat cdk-outputs.json | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['ServerlessDeepAgentStack']['RuntimeId'])"))
 	@echo "Promoting canary endpoint to version $(VERSION)..."
-	aws bedrock-agentcore update-agent-runtime-endpoint \
+	aws bedrock-agentcore-control update-agent-runtime-endpoint \
 		--agent-runtime-id $(RUNTIME_ID) \
 		--endpoint-name canary \
 		--agent-runtime-version $(VERSION) \
@@ -138,11 +146,41 @@ promote-prod: aws-auth
 	fi
 	$(eval RUNTIME_ID := $(shell cat cdk-outputs.json | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['ServerlessDeepAgentStack']['RuntimeId'])"))
 	@echo "Promoting prod endpoint to version $(VERSION)..."
-	aws bedrock-agentcore update-agent-runtime-endpoint \
+	aws bedrock-agentcore-control update-agent-runtime-endpoint \
 		--agent-runtime-id $(RUNTIME_ID) \
 		--endpoint-name prod \
 		--agent-runtime-version $(VERSION) \
 		--region us-east-1
+
+get-latest-version:
+	@$(eval RUNTIME_ID := $(shell cat cdk-outputs.json | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['ServerlessDeepAgentStack']['RuntimeId'])"))
+	@uv run python scripts/get_latest_version.py $(RUNTIME_ID)
+
+promote-canary-latest: aws-auth
+	$(eval RUNTIME_ID := $(shell cat cdk-outputs.json | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['ServerlessDeepAgentStack']['RuntimeId'])"))
+	$(eval VERSION := $(shell uv run python scripts/get_latest_version.py $(RUNTIME_ID)))
+	@echo "Promoting canary endpoint to latest version $(VERSION)..."
+	aws bedrock-agentcore-control update-agent-runtime-endpoint \
+		--agent-runtime-id $(RUNTIME_ID) \
+		--endpoint-name canary \
+		--agent-runtime-version $(VERSION) \
+		--region us-east-1
+
+promote-prod-latest: aws-auth
+	$(eval RUNTIME_ID := $(shell cat cdk-outputs.json | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['ServerlessDeepAgentStack']['RuntimeId'])"))
+	$(eval VERSION := $(shell uv run python scripts/get_latest_version.py $(RUNTIME_ID)))
+	@echo "Promoting prod endpoint to latest version $(VERSION)..."
+	aws bedrock-agentcore-control update-agent-runtime-endpoint \
+		--agent-runtime-id $(RUNTIME_ID) \
+		--endpoint-name prod \
+		--agent-runtime-version $(VERSION) \
+		--region us-east-1
+
+pipeline-pr:
+	@bash scripts/on_pr.sh
+
+pipeline-merge: aws-auth
+	@bash scripts/on_merge.sh
 
 invoke: aws-auth
 	@if [ -z "$(INPUT)" ]; then \
