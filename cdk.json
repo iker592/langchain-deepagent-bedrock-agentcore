@@ -1,6 +1,3 @@
 {
-  "app": "uv run python -m iac.app",
-  "context": {
-    "@aws-cdk/core:bootstrapQualifier": "agentec22"
-  }
+  "app": "uv run python -m iac.app"
 }

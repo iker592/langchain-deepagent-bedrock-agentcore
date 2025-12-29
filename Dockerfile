@@ -8,11 +8,14 @@ ENV UV_LINK_MODE=copy
 
 WORKDIR /app
 
+# Copy the local agent-sdk for the build
+COPY agent-sdk /app/agent-sdk
+
 RUN --mount=from=uv,source=/uv,target=/bin/uv \
     --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=uv.lock,target=uv.lock \
     --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
-    uv export --frozen --no-emit-workspace --no-dev --no-editable -o requirements.txt && \
+    uv export --frozen --no-dev --no-editable -o requirements.txt && \
     uv pip install -r requirements.txt --system
 
 FROM --platform=linux/arm64 public.ecr.aws/docker/library/python:3.13-slim AS runtime
