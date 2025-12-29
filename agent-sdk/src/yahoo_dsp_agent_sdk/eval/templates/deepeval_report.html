@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{TITLE}</title>
+    <link rel="stylesheet" href="deepeval_report.css">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🧪 {TITLE}</h1>
+            <div class="stats">
+                {PASSED_TESTS}/{TOTAL_TESTS} tests passed ({SUCCESS_RATE}% success rate)
+            </div>
+            <div class="model-info">
+                Model used by Agents: {MODEL_NAME}
+            </div>
+        </div>
+        
+        <table>
+            <thead>
+                <tr>
+                    <th>Status</th>
+                    <th>Test Case</th>
+                    <th>Input</th>
+                    <th>Expected Result</th>
+                    <th>Actual Result</th>
+                    <th>Tools Called</th>
+                    <th>Score</th>
+                    <th>Duration</th>
+                    <th>Tokens</th>
+                </tr>
+            </thead>
+            <tbody>
+                {TEST_CASES}
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        let expanded = null;
+
+        const collapse = () => {
+            expanded?.classList.remove('expanded');
+            expanded = null;
+        };
+
+        document.addEventListener('click', e => {
+            const td = e.target.closest('td');
+            if (!td) return;
+
+            if (td === expanded) {
+                const text = document.createElement('textarea');
+                text.value = td.textContent;
+                text.style.cssText = 'position:fixed;opacity:0';
+                document.body.append(text);
+                text.select();
+                document.execCommand('copy');
+                text.remove();
+                td.style.backgroundColor = '#d1ecf1';
+                setTimeout(() => td.style.backgroundColor = '', 400);
+                collapse();
+            } else {
+                collapse();
+                if (td.classList.contains('truncate')) {
+                    td.classList.add('expanded');
+                    expanded = td;
+                }
+            }
+        });
+
+        document.addEventListener('keydown', e => e.key === 'Escape' && collapse());
+    </script>
+</body>
+</html>
+

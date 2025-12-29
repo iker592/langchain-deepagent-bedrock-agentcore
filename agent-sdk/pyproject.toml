@@ -1,0 +1,85 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "yahoo-dsp-agent-sdk"
+version = "0.0.0"
+requires-python = ">=3.12"
+dependencies = [
+    "opentelemetry-sdk>=1.29.0,<2.0.0",
+    "opentelemetry-exporter-otlp>=1.29.0,<2.0.0",
+    "strands-agents>=1.7.0",
+    "ag-ui-protocol>=0.1.9",
+    "langchain>=1.0.0,<2.0.0",
+    "langchain-aws>=1.0.0,<2.0.0",
+    "langchain-core>=1.0.0,<2.0.0",
+    "fastapi>=0.115.11",
+    "uvicorn==0.35.0",
+    "deepeval>=2.0.0",
+    "pytest>=8.3.5,<9.0.0",
+    "pytest-mock>=3.14.0,<4.0.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3.5,<9.0.0",
+    "pytest-xdist>=3.6.0,<4.0.0",
+    "pytest-rerunfailures>=12.0,<15.0",
+    "ruff>=0.10.0,<0.12.0",
+    "pytest-mock>=3.14.0,<4.0.0",
+    "debugpy>=1.8.0,<1.9.0",
+    "deepeval>=2.0.0",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/yahoo_dsp_agent_sdk"]
+
+[tool.ruff]
+# Line length configuration
+line-length = 100
+# Indentation configuration
+indent-width = 4
+# Target Python 3.12
+target-version = "py312"
+# Enable Pyflakes (`F`), pycodestyle (`E`), and isort (`I`)
+lint.select = ["E", "F", "I"]
+# Auto-fix line length issues when possible
+lint.unfixable = []
+# Exclude specific files from formatting
+exclude = [
+    "**/bin/**",
+    ".venv/**",
+    "venv/**",
+    ".env/**"
+]
+
+[tool.ruff.format]
+# Use double quotes for string literals
+quote-style = "double"
+# Auto detect line endings
+line-ending = "auto"
+
+[tool.pytest.ini_options]
+# Filter out warnings we don't control
+filterwarnings = [
+    # Ignore NumPy warnings from faiss
+    "ignore:numpy.core._multiarray_umath is deprecated:DeprecationWarning",
+    # Ignore SWIG warnings
+    "ignore:builtin type SwigPyPacked has no __module__ attribute:DeprecationWarning",
+    "ignore:builtin type SwigPyObject has no __module__ attribute:DeprecationWarning", 
+    "ignore:builtin type swigvarlink has no __module__ attribute:DeprecationWarning",
+    
+    # Ignore FastAPI duplicate operation IDs
+    "ignore:Duplicate Operation ID .* for function:UserWarning",
+    # Ignore Pydantic __fields__ deprecation warning
+    "ignore:The `__fields__` attribute is deprecated, use `model_fields` instead:DeprecationWarning",
+    # Ignore datetime.datetime.utcnow() deprecation warning
+    "ignore:datetime.datetime.utcnow\\(\\) is deprecated and scheduled for removal in a future version:DeprecationWarning",
+]
+
+# Register custom marks
+markers = [
+    "agent_eval: marks tests as agent evaluation tests",
+    "integration: mark a test as an integration test."
+]
