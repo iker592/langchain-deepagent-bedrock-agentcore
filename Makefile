@@ -31,7 +31,8 @@ help:
 	@echo "    make local MEMORY_ID=<id>  Run with AWS AgentCore Memory"
 	@echo ""
 	@echo "  Deployment"
-	@echo "    make deploy      Deploy runtime (creates new version, dev endpoint auto-updates)"
+	@echo "    make deploy      Deploy original deep agent stack"
+	@echo "    make deploy-all  Deploy ALL agent stacks (research, coding, deep)"
 	@echo ""
 	@echo "  Endpoint Promotion"
 	@echo "    make promote-canary VERSION=N  Update canary endpoint to version N"
@@ -121,10 +122,29 @@ local:
 
 deploy: aws-auth
 	@echo "Deploying runtime (creates new version)..."
-	uv run cdk deploy --require-approval never --outputs-file cdk-outputs.json
+	uv run cdk deploy ServerlessDeepAgentStack --require-approval never --outputs-file cdk-outputs.json
+
+deploy-all: aws-auth
+	@echo "Deploying all agent stacks..."
+	uv run cdk deploy --all --require-approval never --outputs-file cdk-outputs.json
 	@echo ""
-	@echo "Deployment complete! Endpoints:"
-	@cat cdk-outputs.json | python3 -c "import sys,json; d=json.load(sys.stdin)['ServerlessDeepAgentStack']; print(f\"  dev:    {d['DevEndpointArn']}\"); print(f\"  canary: {d['CanaryEndpointArn']}\"); print(f\"  prod:   {d['ProdEndpointArn']}\")"
+	@echo "Updating endpoints to latest versions..."
+	@for stack in ServerlessDeepAgentStack ResearchAgentStack CodingAgentStack; do \
+		RUNTIME_ID=$$(cat cdk-outputs.json 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('$$stack', {}).get('RuntimeId', ''))" 2>/dev/null); \
+		if [ -n "$$RUNTIME_ID" ]; then \
+			VERSION=$$(uv run python scripts/get_latest_version.py $$RUNTIME_ID 2>/dev/null); \
+			if [ -n "$$VERSION" ]; then \
+				echo "  $$stack: updating dev endpoint to version $$VERSION"; \
+				aws bedrock-agentcore-control update-agent-runtime-endpoint \
+					--agent-runtime-id $$RUNTIME_ID \
+					--endpoint-name dev \
+					--agent-runtime-version $$VERSION \
+					--region us-east-1 > /dev/null 2>&1 || true; \
+			fi; \
+		fi; \
+	done
+	@echo ""
+	@echo "Deployment complete!"
 
 promote-canary: aws-auth
 	@if [ -z "$(VERSION)" ]; then \

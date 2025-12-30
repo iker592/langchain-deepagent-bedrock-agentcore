@@ -44,6 +44,7 @@ class Agent(ABC):
         tools: List[Any],
         hooks: List[HookProvider] = None,
         agent_id: str = None,
+        description: str = None,
         structured_output_schema: Type[BaseModel] = None,
         structured_output_prompt: str = None,
         mcp_manager: Optional[MCPManager] = None,
@@ -58,6 +59,7 @@ class Agent(ABC):
             tools: List of tools for the agent
             hooks: Optional hooks
             agent_id: Optional agent ID
+            description: Optional description for A2A protocol
             structured_output_schema: Optional Pydantic model schema for structured output
             structured_output_prompt: Optional prompt string for structured output
             mcp_manager: Optional MCPManager for MCP lifecycle and retry configuration
@@ -84,6 +86,7 @@ class Agent(ABC):
             hooks=self._hooks,
             callback_handler=None,
             agent_id=self._current_agent_id,
+            description=description or system_prompt[:200],  # Use first 200 chars of system prompt as default
         )
 
         if structured_output_schema:
