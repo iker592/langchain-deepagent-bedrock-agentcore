@@ -1,4 +1,4 @@
-.PHONY: help setup sync lint format fix build start restart down logs dev local deploy invoke invoke-stream invoke-agui chat clean aws-auth test test-unit test-e2e promote-canary promote-prod get-latest-version promote-canary-latest promote-prod-latest pipeline-pr pipeline-merge
+.PHONY: help setup sync lint format fix build start restart down logs dev local deploy deploy-all invoke invoke-stream invoke-agui chat clean aws-auth test test-unit test-e2e promote-canary promote-prod get-latest-version promote-canary-latest promote-prod-latest pipeline-pr pipeline-merge docker-build docker-start docker-logs docker-start-all docker-build-all local-agent
 
 help:
 	@echo "Available commands:"
@@ -19,16 +19,22 @@ help:
 	@echo "    make test-e2e    Run e2e tests (uses dev endpoint by default)"
 	@echo ""
 	@echo "  Docker Development"
-	@echo "    make build       Build Docker image"
-	@echo "    make start       Start container (detached)"
-	@echo "    make restart     Rebuild and restart container"
-	@echo "    make down        Stop and remove container"
+	@echo "    make build       Build Docker image (main agent)"
+	@echo "    make start       Start container (main agent)"
+	@echo "    make restart     Rebuild and restart (main agent)"
+	@echo "    make down        Stop and remove containers"
 	@echo "    make logs        Follow container logs"
 	@echo "    make dev         Start with hot reload (watch mode)"
+	@echo "    make docker-build AGENT=research|coding  Build specific agent"
+	@echo "    make docker-start AGENT=research|coding  Start specific agent"
+	@echo "    make docker-logs AGENT=research|coding   Logs for specific agent"
+	@echo "    make docker-build-all                    Build all agents"
+	@echo "    make docker-start-all                    Start all agents"
 	@echo ""
 	@echo "  Local Development"
-	@echo "    make local       Run agent locally (in-memory state)"
-	@echo "    make local MEMORY_ID=<id>  Run with AWS AgentCore Memory"
+	@echo "    make local       Run main agent locally (in-memory state)"
+	@echo "    make local MEMORY_ID=<id>       Run with AWS AgentCore Memory"
+	@echo "    make local-agent AGENT=research|coding  Run specific agent locally"
 	@echo ""
 	@echo "  Deployment"
 	@echo "    make deploy      Deploy original deep agent stack"
@@ -121,39 +127,43 @@ local:
 	uv run python -m agent.main
 
 # === Multi-Agent Docker Commands ===
-build-research:
-	docker compose build research-agent
+# Usage: make docker-build AGENT=research|coding|agent
+#        make docker-start AGENT=research|coding|agent
+#        make docker-logs AGENT=research|coding|agent
+#        make local-agent AGENT=research|coding
 
-start-research:
-	docker compose up -d research-agent
+docker-build:
+	$(eval SERVICE := $(if $(filter research,$(AGENT)),research-agent,$(if $(filter coding,$(AGENT)),coding-agent,agent)))
+	docker compose build $(SERVICE)
 
-build-coding:
-	docker compose build coding-agent
+docker-start:
+	$(eval SERVICE := $(if $(filter research,$(AGENT)),research-agent,$(if $(filter coding,$(AGENT)),coding-agent,agent)))
+	docker compose up -d $(SERVICE)
 
-start-coding:
-	docker compose up -d coding-agent
+docker-logs:
+	$(eval SERVICE := $(if $(filter research,$(AGENT)),research-agent,$(if $(filter coding,$(AGENT)),coding-agent,agent)))
+	docker compose logs -f $(SERVICE)
 
-start-all-agents:
+docker-start-all:
 	docker compose up -d
 
-build-all-agents:
+docker-build-all:
 	docker compose build
 
-logs-research:
-	docker compose logs -f research-agent
-
-logs-coding:
-	docker compose logs -f coding-agent
-
-local-research:
-	MEMORY_ID=$(or $(RESEARCH_MEMORY_ID),$(shell cat cdk-outputs.json 2>/dev/null | python3 -c "import sys,json; print(json.load(sys.stdin).get('ResearchAgentStack',{}).get('MemoryId',''))" 2>/dev/null)) \
+local-agent:
+	@if [ -z "$(AGENT)" ]; then \
+		echo "Usage: make local-agent AGENT=research|coding"; \
+		exit 1; \
+	fi
+	$(eval STACK := $(if $(filter research,$(AGENT)),ResearchAgentStack,$(if $(filter coding,$(AGENT)),CodingAgentStack,)))
+	$(eval MODULE := $(if $(filter research,$(AGENT)),agents.research.main,$(if $(filter coding,$(AGENT)),agents.coding.main,)))
+	@if [ -z "$(STACK)" ]; then \
+		echo "Error: Unknown agent '$(AGENT)'. Use 'research' or 'coding'."; \
+		exit 1; \
+	fi
+	MEMORY_ID=$(or $(MEMORY_ID),$(shell cat cdk-outputs.json 2>/dev/null | python3 -c "import sys,json; print(json.load(sys.stdin).get('$(STACK)',{}).get('MemoryId',''))" 2>/dev/null)) \
 	AWS_REGION=us-east-1 \
-	uv run python -m agents.research.main
-
-local-coding:
-	MEMORY_ID=$(or $(CODING_MEMORY_ID),$(shell cat cdk-outputs.json 2>/dev/null | python3 -c "import sys,json; print(json.load(sys.stdin).get('CodingAgentStack',{}).get('MemoryId',''))" 2>/dev/null)) \
-	AWS_REGION=us-east-1 \
-	uv run python -m agents.coding.main
+	uv run python -m $(MODULE)
 
 deploy: aws-auth
 	@echo "Deploying runtime (creates new version)..."
@@ -163,7 +173,21 @@ deploy-all: aws-auth
 	@echo "Deploying all agent stacks..."
 	uv run cdk deploy --all --require-approval never --outputs-file cdk-outputs.json
 	@echo ""
-	./scripts/update_endpoints.sh
+	@echo "Updating dev endpoints to latest versions..."
+	@for stack in ServerlessDeepAgentStack ResearchAgentStack CodingAgentStack; do \
+		RUNTIME_ID=$$(cat cdk-outputs.json 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('$$stack', {}).get('RuntimeId', ''))" 2>/dev/null); \
+		if [ -n "$$RUNTIME_ID" ]; then \
+			VERSION=$$(uv run python scripts/get_latest_version.py $$RUNTIME_ID 2>/dev/null); \
+			if [ -n "$$VERSION" ]; then \
+				echo "  $$stack: updating dev endpoint to version $$VERSION"; \
+				aws bedrock-agentcore-control update-agent-runtime-endpoint \
+					--agent-runtime-id $$RUNTIME_ID \
+					--endpoint-name dev \
+					--agent-runtime-version $$VERSION \
+					--region us-east-1 > /dev/null 2>&1 || true; \
+			fi; \
+		fi; \
+	done
 	@echo ""
 	@echo "Deployment complete!"
 
