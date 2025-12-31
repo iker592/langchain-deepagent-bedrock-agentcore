@@ -40,7 +40,7 @@ class AgentStack(Stack):
             build_args={"AGENT_PATH": agent_path},
         )
 
-        # Create memory for this agent (name must match pattern: ^[a-zA-Z][a-zA-Z0-9_]{0,47}$)
+        # Create memory (name pattern: ^[a-zA-Z][a-zA-Z0-9_]{0,47}$)
         memory = Memory(
             self,
             "Memory",

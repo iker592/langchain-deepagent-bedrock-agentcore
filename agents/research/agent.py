@@ -7,7 +7,6 @@ from bedrock_agentcore.memory.integrations.strands.session_manager import (
 )
 from strands.models.bedrock import BedrockModel
 from strands_tools import calculator, http_request
-
 from yahoo_dsp_agent_sdk.agent import Agent
 
 
@@ -41,14 +40,15 @@ def create_research_agent(
     agent = Agent(
         model=model,
         system_prompt=(
-            "You are a Research Agent specialized in gathering information, analyzing data, "
-            "and providing well-researched insights. You can perform calculations and make "
-            "HTTP requests to gather information. Be thorough and cite your reasoning."
+            "You are a Research Agent specialized in gathering information, "
+            "analyzing data, and providing well-researched insights. "
+            "You can perform calculations and make HTTP requests to gather "
+            "information. Be thorough and cite your reasoning."
         ),
         tools=[calculator, http_request],
         session_manager=session_manager,
         agent_id="research-agent",
-        description="Research Agent for information gathering, data analysis, and research insights.",
+        description="Research Agent for information gathering and analysis.",
     )
 
     return agent

@@ -7,7 +7,6 @@ from bedrock_agentcore.memory.integrations.strands.session_manager import (
 )
 from strands.models.bedrock import BedrockModel
 from strands_tools import calculator, python_repl
-
 from yahoo_dsp_agent_sdk.agent import Agent
 
 
@@ -41,14 +40,15 @@ def create_coding_agent(
     agent = Agent(
         model=model,
         system_prompt=(
-            "You are a Coding Agent specialized in writing Python code, debugging, "
-            "and solving programming problems. You can execute Python code to verify "
-            "your solutions. Write clean, well-documented code and explain your approach."
+            "You are a Coding Agent specialized in writing Python code, "
+            "debugging, and solving programming problems. You can execute "
+            "Python code to verify your solutions. Write clean, "
+            "well-documented code and explain your approach."
         ),
         tools=[calculator, python_repl],
         session_manager=session_manager,
         agent_id="coding-agent",
-        description="Coding Agent for Python programming, debugging, and code execution.",
+        description="Coding Agent for Python programming and debugging.",
     )
 
     return agent

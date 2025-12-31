@@ -86,7 +86,8 @@ class Agent(ABC):
             hooks=self._hooks,
             callback_handler=None,
             agent_id=self._current_agent_id,
-            description=description or system_prompt[:200],  # Use first 200 chars of system prompt as default
+            description=description
+            or system_prompt[:200],  # Use first 200 chars of system prompt as default
         )
 
         if structured_output_schema:

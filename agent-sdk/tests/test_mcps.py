@@ -1,7 +1,4 @@
 import pytest
-from strands.tools.mcp.mcp_agent_tool import MCPAgentTool
-from strands.tools.mcp.mcp_client import MCPClient
-
 from src.exceptions import AgentExecutionError
 from src.mcps import (
     call_mcp_tool,
@@ -9,6 +6,8 @@ from src.mcps import (
     setup_local_mcp_client,
     setup_stremeable_mcp_client,
 )
+from strands.tools.mcp.mcp_agent_tool import MCPAgentTool
+from strands.tools.mcp.mcp_client import MCPClient
 
 
 @pytest.fixture

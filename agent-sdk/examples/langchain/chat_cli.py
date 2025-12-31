@@ -2,7 +2,6 @@
 import asyncio
 
 from example_langchain_agent import create_example_agent
-
 from src.agent_langchain import AgentLangchain
 
 

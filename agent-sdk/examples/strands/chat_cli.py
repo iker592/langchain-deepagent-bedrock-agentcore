@@ -1,8 +1,7 @@
 import asyncio
 
 from example_strands_agent import create_example_agent
-
-from src.agent import Agent
+from yahoo_dsp_agent_sdk.agent import Agent
 
 
 async def stream_response(agent: Agent, query: str) -> None:

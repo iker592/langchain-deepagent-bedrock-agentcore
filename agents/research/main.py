@@ -7,7 +7,6 @@ import uvicorn
 from bedrock_agentcore import BedrockAgentCoreApp
 from fastapi import FastAPI
 from strands.multiagent.a2a import A2AServer
-
 from yahoo_dsp_agent_sdk.agent import Agent
 from yahoo_dsp_agent_sdk.response_handler import handle_agent_response
 
@@ -59,7 +58,9 @@ def create_a2a_app() -> FastAPI:
         region_name=settings.aws_region,
     )
 
-    runtime_url = os.environ.get("AGENTCORE_RUNTIME_URL", settings.agentcore_runtime_url)
+    runtime_url = os.environ.get(
+        "AGENTCORE_RUNTIME_URL", settings.agentcore_runtime_url
+    )
 
     a2a_server = A2AServer(
         agent=agent.agent,  # Use the underlying strands agent
