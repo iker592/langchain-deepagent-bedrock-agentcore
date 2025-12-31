@@ -4,7 +4,7 @@ import uuid
 
 import boto3
 
-from agent.settings import Settings
+from agents.deep.settings import Settings
 
 DEFAULT_SESSION_ID = f"default-session-{uuid.uuid4().hex}"
 DEFAULT_USER_ID = "default-user"

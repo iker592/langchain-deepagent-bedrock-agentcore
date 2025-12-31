@@ -20,15 +20,20 @@ RUN --mount=from=uv,source=/uv,target=/bin/uv \
 
 FROM --platform=linux/arm64 public.ecr.aws/docker/library/python:3.13-slim AS runtime
 
+# Build arg for selecting which agent to include (default: deep agent)
+ARG AGENT_PATH=./agents/deep
+
 WORKDIR /app
 
 COPY --from=builder /usr/local/lib/python3.13/site-packages /usr/local/lib/python3.13/site-packages
 COPY --from=builder /usr/local/bin /usr/local/bin
-COPY ./agent /app/agent
+COPY ${AGENT_PATH} /app/agent
 
 RUN useradd -m -u 1000 bedrock_agentcore
 USER bedrock_agentcore
 
+# Expose both protocols: HTTP (8080) and A2A (9000)
 EXPOSE 8080
+EXPOSE 9000
 
 CMD ["opentelemetry-instrument", "python", "-m", "agent.main"]

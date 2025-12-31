@@ -25,16 +25,16 @@ help:
 	@echo "    make down        Stop and remove containers"
 	@echo "    make logs        Follow container logs"
 	@echo "    make dev         Start with hot reload (watch mode)"
-	@echo "    make docker-build AGENT=research|coding  Build specific agent"
-	@echo "    make docker-start AGENT=research|coding  Start specific agent"
-	@echo "    make docker-logs AGENT=research|coding   Logs for specific agent"
+	@echo "    make docker-build AGENT=deep|research|coding  Build specific agent"
+	@echo "    make docker-start AGENT=deep|research|coding  Start specific agent"
+	@echo "    make docker-logs AGENT=deep|research|coding   Logs for specific agent"
 	@echo "    make docker-build-all                    Build all agents"
 	@echo "    make docker-start-all                    Start all agents"
 	@echo ""
 	@echo "  Local Development"
 	@echo "    make local       Run main agent locally (in-memory state)"
 	@echo "    make local MEMORY_ID=<id>       Run with AWS AgentCore Memory"
-	@echo "    make local-agent AGENT=research|coding  Run specific agent locally"
+	@echo "    make local-agent AGENT=deep|research|coding  Run specific agent locally"
 	@echo ""
 	@echo "  Deployment"
 	@echo "    make deploy      Deploy original deep agent stack"
@@ -124,13 +124,13 @@ dev:
 local:
 	MODEL=bedrock:us.anthropic.claude-haiku-4-5-20251001-v1:0 \
 	MEMORY_ID=$(or $(MEMORY_ID),) \
-	uv run python -m agent.main
+	uv run python -m agents.deep.main
 
 # === Multi-Agent Docker Commands ===
-# Usage: make docker-build AGENT=research|coding|agent
-#        make docker-start AGENT=research|coding|agent
-#        make docker-logs AGENT=research|coding|agent
-#        make local-agent AGENT=research|coding
+# Usage: make docker-build AGENT=deep|research|coding
+#        make docker-start AGENT=deep|research|coding
+#        make docker-logs AGENT=deep|research|coding
+#        make local-agent AGENT=deep|research|coding
 
 docker-build:
 	$(eval SERVICE := $(if $(filter research,$(AGENT)),research-agent,$(if $(filter coding,$(AGENT)),coding-agent,agent)))
@@ -152,13 +152,13 @@ docker-build-all:
 
 local-agent:
 	@if [ -z "$(AGENT)" ]; then \
-		echo "Usage: make local-agent AGENT=research|coding"; \
+		echo "Usage: make local-agent AGENT=deep|research|coding"; \
 		exit 1; \
 	fi
-	$(eval STACK := $(if $(filter research,$(AGENT)),ResearchAgentStack,$(if $(filter coding,$(AGENT)),CodingAgentStack,)))
-	$(eval MODULE := $(if $(filter research,$(AGENT)),agents.research.main,$(if $(filter coding,$(AGENT)),agents.coding.main,)))
+	$(eval STACK := $(if $(filter deep,$(AGENT)),ServerlessDeepAgentStack,$(if $(filter research,$(AGENT)),ResearchAgentStack,$(if $(filter coding,$(AGENT)),CodingAgentStack,))))
+	$(eval MODULE := $(if $(filter deep,$(AGENT)),agents.deep.main,$(if $(filter research,$(AGENT)),agents.research.main,$(if $(filter coding,$(AGENT)),agents.coding.main,))))
 	@if [ -z "$(STACK)" ]; then \
-		echo "Error: Unknown agent '$(AGENT)'. Use 'research' or 'coding'."; \
+		echo "Error: Unknown agent '$(AGENT)'. Use 'deep', 'research', or 'coding'."; \
 		exit 1; \
 	fi
 	MEMORY_ID=$(or $(MEMORY_ID),$(shell cat cdk-outputs.json 2>/dev/null | python3 -c "import sys,json; print(json.load(sys.stdin).get('$(STACK)',{}).get('MemoryId',''))" 2>/dev/null)) \

@@ -2,11 +2,14 @@ services:
   agent:
     build:
       context: .
+      args:
+        AGENT_PATH: ./agents/deep
       platforms:
         - linux/arm64
     image: deepagent
     ports:
       - "8080:8080"
+      - "9000:9000"
     volumes:
       - ~/.aws:/home/bedrock_agentcore/.aws:ro
     environment:
@@ -20,7 +23,7 @@ services:
     develop:
       watch:
         - action: sync
-          path: ./agent
+          path: ./agents/deep
           target: /app/agent
         - action: rebuild
           path: ./pyproject.toml
@@ -28,7 +31,8 @@ services:
   research-agent:
     build:
       context: .
-      dockerfile: Dockerfile.research
+      args:
+        AGENT_PATH: ./agents/research
       platforms:
         - linux/arm64
     image: research-agent
@@ -54,7 +58,8 @@ services:
   coding-agent:
     build:
       context: .
-      dockerfile: Dockerfile.coding
+      args:
+        AGENT_PATH: ./agents/coding
       platforms:
         - linux/arm64
     image: coding-agent

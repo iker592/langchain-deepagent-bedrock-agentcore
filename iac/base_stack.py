@@ -15,8 +15,7 @@ class AgentStack(Stack):
         scope: Construct,
         construct_id: str,
         agent_name: str,
-        agent_dockerfile_context: str,
-        dockerfile: str = "Dockerfile",
+        agent_path: str = "./agents/deep",
         model: str = "bedrock:global.anthropic.claude-sonnet-4-5-20250929-v1:0",
         **kwargs,
     ) -> None:
@@ -27,16 +26,18 @@ class AgentStack(Stack):
             scope: CDK scope
             construct_id: Stack ID
             agent_name: Name of the agent (used for resource naming)
-            agent_dockerfile_context: Path to directory containing Dockerfile
-            dockerfile: Name of the Dockerfile to use
+            agent_path: Path to agent directory (relative to project root)
             model: Bedrock model ID to use
         """
         super().__init__(scope, construct_id, **kwargs)
 
-        # Create artifact from the agent's Dockerfile context
+        # Project root is parent of iac directory
+        project_root = str(Path(__file__).parent.parent.resolve())
+
+        # Create artifact with build args for agent selection
         artifact = AgentRuntimeArtifact.from_asset(
-            agent_dockerfile_context,
-            file=dockerfile,
+            project_root,
+            build_args={"AGENT_PATH": agent_path},
         )
 
         # Create memory for this agent (name must match pattern: ^[a-zA-Z][a-zA-Z0-9_]{0,47}$)
@@ -110,4 +111,3 @@ class AgentStack(Stack):
         self.runtime = runtime
         self.memory = memory
         self.dev_endpoint = dev_endpoint
-
