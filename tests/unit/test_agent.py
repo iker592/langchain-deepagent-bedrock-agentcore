@@ -1,5 +1,7 @@
 import pytest
 
+AGENT_MODULE = "agents.deep.agent"
+
 
 class MockModel:
     pass
@@ -14,9 +16,11 @@ class MockSessionManager:
 class TestAgentCreation:
     def test_create_agent_without_memory(self, monkeypatch):
         monkeypatch.delenv("MEMORY_ID", raising=False)
-        monkeypatch.setattr("agent.agent.BedrockModel", lambda **kwargs: MockModel())
+        monkeypatch.setattr(
+            f"{AGENT_MODULE}.BedrockModel", lambda **kwargs: MockModel()
+        )
 
-        from agent.agent import create_agent
+        from agents.deep.agent import create_agent
 
         agent = create_agent()
 
@@ -25,9 +29,11 @@ class TestAgentCreation:
 
     def test_create_agent_with_custom_agent_id(self, monkeypatch):
         monkeypatch.delenv("MEMORY_ID", raising=False)
-        monkeypatch.setattr("agent.agent.BedrockModel", lambda **kwargs: MockModel())
+        monkeypatch.setattr(
+            f"{AGENT_MODULE}.BedrockModel", lambda **kwargs: MockModel()
+        )
 
-        from agent.agent import create_agent
+        from agents.deep.agent import create_agent
 
         agent = create_agent(agent_id="custom-agent")
 
@@ -36,13 +42,15 @@ class TestAgentCreation:
 
     def test_create_agent_with_memory_id(self, monkeypatch):
         monkeypatch.setenv("MEMORY_ID", "test-memory")
-        monkeypatch.setattr("agent.agent.BedrockModel", lambda **kwargs: MockModel())
         monkeypatch.setattr(
-            "agent.agent.AgentCoreMemorySessionManager",
+            f"{AGENT_MODULE}.BedrockModel", lambda **kwargs: MockModel()
+        )
+        monkeypatch.setattr(
+            f"{AGENT_MODULE}.AgentCoreMemorySessionManager",
             lambda **kwargs: MockSessionManager(),
         )
 
-        from agent.agent import create_agent
+        from agents.deep.agent import create_agent
 
         agent = create_agent(session_id="sess-123", actor_id="user-456")
 
@@ -54,9 +62,11 @@ class TestAgentCreation:
 class TestAgentConfiguration:
     def test_create_agent_returns_agent_instance(self, monkeypatch):
         monkeypatch.delenv("MEMORY_ID", raising=False)
-        monkeypatch.setattr("agent.agent.BedrockModel", lambda **kwargs: MockModel())
+        monkeypatch.setattr(
+            f"{AGENT_MODULE}.BedrockModel", lambda **kwargs: MockModel()
+        )
 
-        from agent.agent import create_agent
+        from agents.deep.agent import create_agent
 
         agent = create_agent()
 

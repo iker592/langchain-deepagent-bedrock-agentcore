@@ -2,11 +2,14 @@ services:
   agent:
     build:
       context: .
+      args:
+        AGENT_PATH: ./agents/deep
       platforms:
         - linux/arm64
     image: deepagent
     ports:
       - "8080:8080"
+      - "9000:9000"
     volumes:
       - ~/.aws:/home/bedrock_agentcore/.aws:ro
     environment:
@@ -20,7 +23,61 @@ services:
     develop:
       watch:
         - action: sync
-          path: ./agent
+          path: ./agents/deep
+          target: /app/agent
+        - action: rebuild
+          path: ./pyproject.toml
+
+  research-agent:
+    build:
+      context: .
+      args:
+        AGENT_PATH: ./agents/research
+      platforms:
+        - linux/arm64
+    image: research-agent
+    ports:
+      - "8081:8080"
+      - "9001:9000"
+    volumes:
+      - ~/.aws:/home/bedrock_agentcore/.aws:ro
+    environment:
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-}
+      - AWS_SESSION_TOKEN=${AWS_SESSION_TOKEN:-}
+      - AWS_REGION=${AWS_REGION:-us-east-1}
+      - MEMORY_ID=${RESEARCH_MEMORY_ID:-}
+    develop:
+      watch:
+        - action: sync
+          path: ./agents/research
+          target: /app/agent
+        - action: rebuild
+          path: ./pyproject.toml
+
+  coding-agent:
+    build:
+      context: .
+      args:
+        AGENT_PATH: ./agents/coding
+      platforms:
+        - linux/arm64
+    image: coding-agent
+    ports:
+      - "8082:8080"
+      - "9002:9000"
+    volumes:
+      - ~/.aws:/home/bedrock_agentcore/.aws:ro
+    environment:
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-}
+      - AWS_SESSION_TOKEN=${AWS_SESSION_TOKEN:-}
+      - AWS_REGION=${AWS_REGION:-us-east-1}
+      - MEMORY_ID=${CODING_MEMORY_ID:-}
+    develop:
+      watch:
+        - action: sync
+          path: ./agents/coding
           target: /app/agent
         - action: rebuild
           path: ./pyproject.toml

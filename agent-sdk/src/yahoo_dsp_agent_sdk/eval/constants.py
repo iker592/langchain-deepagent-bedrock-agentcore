@@ -1,0 +1,16 @@
+INPUT_KEY_NAME = "user_query"
+EXPECTED_TOOLS_KEY_NAME = "expected_tools"
+EXPECTED_OUTPUT_KEY_NAME = "expected_result"
+
+DEFAULT_MODEL_ID = "us.anthropic.claude-3-7-sonnet-20250219-v1:0"
+DEFAULT_REGION = "us-east-1"
+DEFAULT_MAX_TOKENS = 5000
+DEFAULT_TEMPERATURE = 0.0
+DEFAULT_TIMEOUT_CONNECT = 10
+DEFAULT_TIMEOUT_READ = 60
+DEFAULT_RETRY_MAX_ATTEMPTS = 3
+
+DEEPEVAL_RESULTS_DIR = ".deepeval"
+DEEPEVAL_LATEST_RUN_FILE = ".latest_test_run.json"
+REPORT_HTML_FILENAME = "deepeval_results.html"
+REPORT_CSS_FILENAME = "deepeval_report.css"

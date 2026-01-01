@@ -1,0 +1,6 @@
+.PHONY: fix
+fix:
+	uv run ruff check . --fix && uv run ruff format .
+
+sync:
+	uv sync

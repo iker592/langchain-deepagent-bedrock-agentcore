@@ -1,0 +1,4 @@
+#!/bin/bash
+# Pre-commit hook: runs all PR checks before allowing commit
+
+make pipeline-pr
