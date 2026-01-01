@@ -1,4 +1,4 @@
-.PHONY: help setup sync lint format fix build start restart down logs dev local deploy deploy-all invoke invoke-stream invoke-agui chat clean aws-auth test test-unit test-e2e promote-canary promote-prod get-latest-version promote-canary-latest promote-prod-latest pipeline-pr pipeline-merge docker-build docker-start docker-logs docker-start-all docker-build-all local-agent
+.PHONY: help setup sync lint format fix check build start restart down logs dev local deploy deploy-all invoke invoke-stream invoke-agui chat clean aws-auth test test-unit test-e2e promote-canary promote-prod get-latest-version promote-canary-latest promote-prod-latest pipeline-pr pipeline-merge docker-build docker-start docker-logs docker-start-all docker-build-all local-agent
 
 help:
 	@echo "Available commands:"
@@ -9,6 +9,7 @@ help:
 	@echo "    make aws-auth    Setup AWS authentication (federate)"
 	@echo ""
 	@echo "  Code Quality"
+	@echo "    make check       Run all code checks (used by pre-commit)"
 	@echo "    make lint        Check code with ruff"
 	@echo "    make format      Format code with ruff"
 	@echo "    make fix         Format and fix linting issues"
@@ -63,6 +64,8 @@ help:
 setup:
 	@command -v uv >/dev/null 2>&1 || { echo "Installing uv..."; curl -LsSf https://astral.sh/uv/install.sh | sh; }
 	@$(MAKE) sync
+	@git config core.hooksPath .githooks
+	@echo "✅ Git hooks configured"
 
 sync:
 	uv sync
@@ -87,6 +90,12 @@ format:
 
 fix: format
 	uv run ruff check . --fix
+
+check:
+	@echo "🔍 Running code checks..."
+	@uv run ruff format --check . || { echo "❌ Format issues. Run 'make fix'"; exit 1; }
+	@uv run ruff check . || { echo "❌ Lint issues. Run 'make fix'"; exit 1; }
+	@echo "✅ All checks passed!"
 
 test:
 	uv run pytest
@@ -241,8 +250,8 @@ promote-prod-latest: aws-auth
 		--agent-runtime-version $(VERSION) \
 		--region us-east-1
 
-pipeline-pr:
-	@bash scripts/on_pr.sh
+pipeline-pr: check test-unit
+	@echo "✅ All PR checks passed!"
 
 pipeline-merge: aws-auth
 	@bash scripts/on_merge.sh
