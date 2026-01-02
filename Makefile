@@ -26,20 +26,20 @@ help:
 	@echo "    make down        Stop and remove containers"
 	@echo "    make logs        Follow container logs"
 	@echo "    make dev         Start with hot reload (watch mode)"
-	@echo "    make docker-build AGENT=deep|research|coding  Build specific agent"
-	@echo "    make docker-start AGENT=deep|research|coding  Start specific agent"
-	@echo "    make docker-logs AGENT=deep|research|coding   Logs for specific agent"
+	@echo "    make docker-build AGENT=dsp|research|coding  Build specific agent"
+	@echo "    make docker-start AGENT=dsp|research|coding  Start specific agent"
+	@echo "    make docker-logs AGENT=dsp|research|coding   Logs for specific agent"
 	@echo "    make docker-build-all                    Build all agents"
 	@echo "    make docker-start-all                    Start all agents"
 	@echo ""
 	@echo "  Local Development"
 	@echo "    make local       Run main agent locally (in-memory state)"
 	@echo "    make local MEMORY_ID=<id>       Run with AWS AgentCore Memory"
-	@echo "    make local-agent AGENT=deep|research|coding  Run specific agent locally"
+	@echo "    make local-agent AGENT=dsp|research|coding  Run specific agent locally"
 	@echo ""
 	@echo "  Deployment"
-	@echo "    make deploy      Deploy original deep agent stack"
-	@echo "    make deploy-all  Deploy ALL agent stacks (research, coding, deep)"
+	@echo "    make deploy      Deploy main DSP agent stack"
+	@echo "    make deploy-all  Deploy ALL agent stacks (dsp, research, coding)"
 	@echo ""
 	@echo "  Endpoint Promotion"
 	@echo "    make promote-canary VERSION=N  Update canary endpoint to version N"
@@ -104,7 +104,7 @@ test-unit:
 	uv run pytest -m unit
 
 test-e2e: aws-auth
-	$(eval ARN := $(shell cat cdk-outputs.json 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['ServerlessDeepAgentStack']['RuntimeArn'])" 2>/dev/null || echo ""))
+	$(eval ARN := $(shell cat cdk-outputs.json 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['DSPAgentStack']['RuntimeArn'])" 2>/dev/null || echo ""))
 	$(eval ENDPOINT := $(or $(ENDPOINT),DEFAULT))
 	@if [ -z "$(ARN)" ]; then \
 		echo "Error: No deployment found. Run 'make deploy' first."; \
@@ -116,10 +116,10 @@ build:
 	docker compose build
 
 start:
-	docker compose up -d agent
+	docker compose up -d dsp-agent
 
 restart:
-	docker compose up --build -d agent
+	docker compose up --build -d dsp-agent
 
 down:
 	docker compose down
@@ -133,24 +133,24 @@ dev:
 local:
 	MODEL=bedrock:us.anthropic.claude-haiku-4-5-20251001-v1:0 \
 	MEMORY_ID=$(or $(MEMORY_ID),) \
-	uv run python -m agents.deep.main
+	uv run python -m agents.dsp.main
 
 # === Multi-Agent Docker Commands ===
-# Usage: make docker-build AGENT=deep|research|coding
-#        make docker-start AGENT=deep|research|coding
-#        make docker-logs AGENT=deep|research|coding
-#        make local-agent AGENT=deep|research|coding
+# Usage: make docker-build AGENT=dsp|research|coding
+#        make docker-start AGENT=dsp|research|coding
+#        make docker-logs AGENT=dsp|research|coding
+#        make local-agent AGENT=dsp|research|coding
 
 docker-build:
-	$(eval SERVICE := $(if $(filter research,$(AGENT)),research-agent,$(if $(filter coding,$(AGENT)),coding-agent,agent)))
+	$(eval SERVICE := $(if $(filter research,$(AGENT)),research-agent,$(if $(filter coding,$(AGENT)),coding-agent,dsp-agent)))
 	docker compose build $(SERVICE)
 
 docker-start:
-	$(eval SERVICE := $(if $(filter research,$(AGENT)),research-agent,$(if $(filter coding,$(AGENT)),coding-agent,agent)))
+	$(eval SERVICE := $(if $(filter research,$(AGENT)),research-agent,$(if $(filter coding,$(AGENT)),coding-agent,dsp-agent)))
 	docker compose up -d $(SERVICE)
 
 docker-logs:
-	$(eval SERVICE := $(if $(filter research,$(AGENT)),research-agent,$(if $(filter coding,$(AGENT)),coding-agent,agent)))
+	$(eval SERVICE := $(if $(filter research,$(AGENT)),research-agent,$(if $(filter coding,$(AGENT)),coding-agent,dsp-agent)))
 	docker compose logs -f $(SERVICE)
 
 docker-start-all:
@@ -161,13 +161,13 @@ docker-build-all:
 
 local-agent:
 	@if [ -z "$(AGENT)" ]; then \
-		echo "Usage: make local-agent AGENT=deep|research|coding"; \
+		echo "Usage: make local-agent AGENT=dsp|research|coding"; \
 		exit 1; \
 	fi
-	$(eval STACK := $(if $(filter deep,$(AGENT)),ServerlessDeepAgentStack,$(if $(filter research,$(AGENT)),ResearchAgentStack,$(if $(filter coding,$(AGENT)),CodingAgentStack,))))
-	$(eval MODULE := $(if $(filter deep,$(AGENT)),agents.deep.main,$(if $(filter research,$(AGENT)),agents.research.main,$(if $(filter coding,$(AGENT)),agents.coding.main,))))
+	$(eval STACK := $(if $(filter dsp,$(AGENT)),DSPAgentStack,$(if $(filter research,$(AGENT)),ResearchAgentStack,$(if $(filter coding,$(AGENT)),CodingAgentStack,))))
+	$(eval MODULE := $(if $(filter dsp,$(AGENT)),agents.dsp.main,$(if $(filter research,$(AGENT)),agents.research.main,$(if $(filter coding,$(AGENT)),agents.coding.main,))))
 	@if [ -z "$(STACK)" ]; then \
-		echo "Error: Unknown agent '$(AGENT)'. Use 'deep', 'research', or 'coding'."; \
+		echo "Error: Unknown agent '$(AGENT)'. Use 'dsp', 'research', or 'coding'."; \
 		exit 1; \
 	fi
 	MEMORY_ID=$(or $(MEMORY_ID),$(shell cat cdk-outputs.json 2>/dev/null | python3 -c "import sys,json; print(json.load(sys.stdin).get('$(STACK)',{}).get('MemoryId',''))" 2>/dev/null)) \
@@ -176,14 +176,14 @@ local-agent:
 
 deploy: aws-auth
 	@echo "Deploying runtime (creates new version)..."
-	uv run cdk deploy ServerlessDeepAgentStack --require-approval never --outputs-file cdk-outputs.json
+	uv run cdk deploy DSPAgentStack --require-approval never --outputs-file cdk-outputs.json
 
 deploy-all: aws-auth
 	@echo "Deploying all agent stacks..."
 	uv run cdk deploy --all --require-approval never --outputs-file cdk-outputs.json
 	@echo ""
 	@echo "Updating dev endpoints to latest versions..."
-	@for stack in ServerlessDeepAgentStack ResearchAgentStack CodingAgentStack; do \
+	@for stack in DSPAgentStack ResearchAgentStack CodingAgentStack; do \
 		RUNTIME_ID=$$(cat cdk-outputs.json 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('$$stack', {}).get('RuntimeId', ''))" 2>/dev/null); \
 		if [ -n "$$RUNTIME_ID" ]; then \
 			VERSION=$$(uv run python scripts/get_latest_version.py $$RUNTIME_ID 2>/dev/null); \
@@ -205,7 +205,7 @@ promote-canary: aws-auth
 		echo "Usage: make promote-canary VERSION=N"; \
 		exit 1; \
 	fi
-	$(eval RUNTIME_ID := $(shell cat cdk-outputs.json | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['ServerlessDeepAgentStack']['RuntimeId'])"))
+	$(eval RUNTIME_ID := $(shell cat cdk-outputs.json | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['DSPAgentStack']['RuntimeId'])"))
 	@echo "Promoting canary endpoint to version $(VERSION)..."
 	aws bedrock-agentcore-control update-agent-runtime-endpoint \
 		--agent-runtime-id $(RUNTIME_ID) \
@@ -218,7 +218,7 @@ promote-prod: aws-auth
 		echo "Usage: make promote-prod VERSION=N"; \
 		exit 1; \
 	fi
-	$(eval RUNTIME_ID := $(shell cat cdk-outputs.json | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['ServerlessDeepAgentStack']['RuntimeId'])"))
+	$(eval RUNTIME_ID := $(shell cat cdk-outputs.json | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['DSPAgentStack']['RuntimeId'])"))
 	@echo "Promoting prod endpoint to version $(VERSION)..."
 	aws bedrock-agentcore-control update-agent-runtime-endpoint \
 		--agent-runtime-id $(RUNTIME_ID) \
@@ -231,7 +231,7 @@ get-latest-version:
 	@uv run python scripts/get_latest_version.py $(RUNTIME_ID)
 
 promote-canary-latest: aws-auth
-	$(eval RUNTIME_ID := $(shell cat cdk-outputs.json | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['ServerlessDeepAgentStack']['RuntimeId'])"))
+	$(eval RUNTIME_ID := $(shell cat cdk-outputs.json | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['DSPAgentStack']['RuntimeId'])"))
 	$(eval VERSION := $(shell uv run python scripts/get_latest_version.py $(RUNTIME_ID)))
 	@echo "Promoting canary endpoint to latest version $(VERSION)..."
 	aws bedrock-agentcore-control update-agent-runtime-endpoint \
@@ -241,7 +241,7 @@ promote-canary-latest: aws-auth
 		--region us-east-1
 
 promote-prod-latest: aws-auth
-	$(eval RUNTIME_ID := $(shell cat cdk-outputs.json | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['ServerlessDeepAgentStack']['RuntimeId'])"))
+	$(eval RUNTIME_ID := $(shell cat cdk-outputs.json | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['DSPAgentStack']['RuntimeId'])"))
 	$(eval VERSION := $(shell uv run python scripts/get_latest_version.py $(RUNTIME_ID)))
 	@echo "Promoting prod endpoint to latest version $(VERSION)..."
 	aws bedrock-agentcore-control update-agent-runtime-endpoint \
@@ -259,11 +259,11 @@ pipeline-merge: aws-auth
 invoke: aws-auth
 	@if [ -z "$(INPUT)" ]; then \
 		echo "Usage: make invoke INPUT=<msg> [STACK=<stack>] [ENDPOINT=dev|canary|prod] [SESSION_ID=<id>] [USER_ID=<id>]"; \
-		echo "  STACK options: ServerlessDeepAgentStack (default), ResearchAgentStack, CodingAgentStack"; \
+		echo "  STACK options: DSPAgentStack (default), ResearchAgentStack, CodingAgentStack"; \
 		exit 1; \
 	fi
 	$(eval ENDPOINT := $(or $(ENDPOINT),DEFAULT))
-	$(eval STACK := $(or $(STACK),ServerlessDeepAgentStack))
+	$(eval STACK := $(or $(STACK),DSPAgentStack))
 	$(eval ARN := $(shell cat cdk-outputs.json 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['$(STACK)']['RuntimeArn'])" 2>/dev/null || echo ""))
 	@if [ -z "$(ARN)" ]; then \
 		echo "Error: No deployment found for $(STACK). Run 'make deploy-all' first."; \
@@ -275,11 +275,11 @@ invoke: aws-auth
 invoke-stream: aws-auth
 	@if [ -z "$(INPUT)" ]; then \
 		echo "Usage: make invoke-stream INPUT=<msg> [STACK=<stack>] [ENDPOINT=dev|canary|prod] [SESSION_ID=<id>] [USER_ID=<id>]"; \
-		echo "  STACK options: ServerlessDeepAgentStack (default), ResearchAgentStack, CodingAgentStack"; \
+		echo "  STACK options: DSPAgentStack (default), ResearchAgentStack, CodingAgentStack"; \
 		exit 1; \
 	fi
 	$(eval ENDPOINT := $(or $(ENDPOINT),DEFAULT))
-	$(eval STACK := $(or $(STACK),ServerlessDeepAgentStack))
+	$(eval STACK := $(or $(STACK),DSPAgentStack))
 	$(eval ARN := $(shell cat cdk-outputs.json 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['$(STACK)']['RuntimeArn'])" 2>/dev/null || echo ""))
 	@if [ -z "$(ARN)" ]; then \
 		echo "Error: No deployment found for $(STACK). Run 'make deploy-all' first."; \
@@ -294,7 +294,7 @@ invoke-agui: aws-auth
 		exit 1; \
 	fi
 	$(eval ENDPOINT := $(or $(ENDPOINT),DEFAULT))
-	$(eval ARN := $(shell cat cdk-outputs.json 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['ServerlessDeepAgentStack']['RuntimeArn'])" 2>/dev/null || echo ""))
+	$(eval ARN := $(shell cat cdk-outputs.json 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['DSPAgentStack']['RuntimeArn'])" 2>/dev/null || echo ""))
 	@if [ -z "$(ARN)" ]; then \
 		echo "Error: No deployment found. Run 'make deploy' first."; \
 		exit 1; \

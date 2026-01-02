@@ -20,8 +20,8 @@ RUN --mount=from=uv,source=/uv,target=/bin/uv \
 
 FROM --platform=linux/arm64 public.ecr.aws/docker/library/python:3.13-slim AS runtime
 
-# Build arg for selecting which agent to include (default: deep agent)
-ARG AGENT_PATH=./agents/deep
+# Build arg for selecting which agent to include (default: DSP agent)
+ARG AGENT_PATH=./agents/dsp
 
 WORKDIR /app
 

@@ -15,7 +15,7 @@ class AgentStack(Stack):
         scope: Construct,
         construct_id: str,
         agent_name: str,
-        agent_path: str = "./agents/deep",
+        agent_path: str = "./agents/dsp",
         model: str = "bedrock:global.anthropic.claude-sonnet-4-5-20250929-v1:0",
         **kwargs,
     ) -> None:

@@ -1,12 +1,12 @@
 services:
-  agent:
+  dsp-agent:
     build:
       context: .
       args:
-        AGENT_PATH: ./agents/deep
+        AGENT_PATH: ./agents/dsp
       platforms:
         - linux/arm64
-    image: deepagent
+    image: dspagent
     ports:
       - "8080:8080"
       - "9000:9000"
@@ -23,7 +23,7 @@ services:
     develop:
       watch:
         - action: sync
-          path: ./agents/deep
+          path: ./agents/dsp
           target: /app/agent
         - action: rebuild
           path: ./pyproject.toml

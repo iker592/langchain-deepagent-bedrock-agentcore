@@ -2,7 +2,7 @@
 set -e
 
 # All stacks to deploy and update
-STACKS="${STACKS:-ServerlessDeepAgentStack ResearchAgentStack CodingAgentStack}"
+STACKS="${STACKS:-DSPAgentStack ResearchAgentStack CodingAgentStack}"
 
 PIPELINE_START=$(date +%s)
 
@@ -62,12 +62,12 @@ make test-e2e
 E2E_DURATION=$(($(date +%s) - STEP_START))
 echo "  Duration: ${E2E_DURATION}s"
 
-# Canary/Prod promotion only for main DeepAgent stack
-RUNTIME_ID=$(cat cdk-outputs.json | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['ServerlessDeepAgentStack']['RuntimeId'])")
+# Canary/Prod promotion only for main DSPAgent stack
+RUNTIME_ID=$(cat cdk-outputs.json | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['DSPAgentStack']['RuntimeId'])")
 VERSION=$(uv run python scripts/get_latest_version.py $RUNTIME_ID)
 
 echo ""
-echo "Step 6: Promote canary to version $VERSION (DeepAgent only)..."
+echo "Step 6: Promote canary to version $VERSION (DSPAgent only)..."
 aws bedrock-agentcore-control update-agent-runtime-endpoint \
     --agent-runtime-id $RUNTIME_ID \
     --endpoint-name canary \
@@ -84,7 +84,7 @@ echo "  - Run sample traffic through canary"
 sleep 2
 
 echo ""
-echo "Step 8: Promote prod to version $VERSION (DeepAgent only)..."
+echo "Step 8: Promote prod to version $VERSION (DSPAgent only)..."
 aws bedrock-agentcore-control update-agent-runtime-endpoint \
     --agent-runtime-id $RUNTIME_ID \
     --endpoint-name prod \
@@ -96,7 +96,7 @@ echo ""
 echo "========================================="
 echo "Deploy pipeline complete!"
 echo "All dev endpoints updated to latest versions"
-echo "DeepAgent canary/prod on version $VERSION"
+echo "DSPAgent canary/prod on version $VERSION"
 echo "========================================="
 echo ""
 echo "Summary:"

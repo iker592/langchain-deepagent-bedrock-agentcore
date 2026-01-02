@@ -2,12 +2,12 @@ from aws_cdk import App
 
 from .coding_stack import CodingAgentStack
 from .research_stack import ResearchAgentStack
-from .stack import ServerlessDeepAgentStack
+from .stack import DSPAgentStack
 
 app = App()
 
-# Original deep agent stack (kept for backwards compatibility)
-ServerlessDeepAgentStack(app, "ServerlessDeepAgentStack")
+# Main DSP agent stack
+DSPAgentStack(app, "DSPAgentStack")
 
 # Multi-agent stacks with HTTP + A2A protocols
 ResearchAgentStack(app, "ResearchAgentStack")

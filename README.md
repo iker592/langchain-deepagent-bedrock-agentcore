@@ -1,4 +1,4 @@
-# Serverless Strands Agent
+# DSP Agent
 
 A serverless AI agent built with **Amazon Bedrock AgentCore** + **Strands Agents** + **Yahoo DSP Agent SDK**.  
 Deploys to AWS as a fully managed runtime with persistent conversation memory.
@@ -50,7 +50,7 @@ make deploy
 **Stack:**
 - **[Strands Agents](https://strandsagents.com/)** - AI agent framework
 - **[yahoo-dsp-agent-sdk](https://git.ouryahoo.com/iredondo/agent-sdk)** - Yahoo Agent SDK
-- **[AWS Bedrock AgentCore](https://docs.aws.amazon.com/bedrock-agentcore/)** - Serverless agent runtime
+- **[AWS Bedrock AgentCore](https://docs.aws.amazon.com/bedrock-agentcore/)** - Agent runtime
 - **[AgentCore Memory](https://strandsagents.com/latest/documentation/docs/community/session-managers/agentcore-memory/)** - Persistent session management
 - **[AWS CDK](https://aws.amazon.com/cdk/)** - Infrastructure as Code
 
@@ -170,7 +170,7 @@ make deploy      # Deploy via CDK
 ```
 
 Outputs:
-- `RuntimeName`: Agent runtime ID (e.g., `deep_agent-grrXst44Ca`)
+- `RuntimeName`: Agent runtime ID (e.g., `dsp_agent-grrXst44Ca`)
 - `MemoryId`: Memory store ID (e.g., `memory-YkJACvBGME`)
 
 ### Invoke Deployed Agent
@@ -255,7 +255,7 @@ Test your deployed agent directly from the AWS Console:
 
 1. Go to **Bedrock AgentCore**
 2. Go to **Test/Agent Sandbox** in the left sidebar
-3. Select your agent from the dropdown (`deep_agent`)
+3. Select your agent from the dropdown (`dsp_agent`)
 5. Choose **Endpoint**: `DEFAULT`
 6. Paste this JSON payload in the **Input** field:
 

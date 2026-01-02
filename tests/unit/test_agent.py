@@ -1,6 +1,6 @@
 import pytest
 
-AGENT_MODULE = "agents.deep.agent"
+AGENT_MODULE = "agents.dsp.agent"
 
 
 class MockModel:
@@ -20,7 +20,7 @@ class TestAgentCreation:
             f"{AGENT_MODULE}.BedrockModel", lambda **kwargs: MockModel()
         )
 
-        from agents.deep.agent import create_agent
+        from agents.dsp.agent import create_agent
 
         agent = create_agent()
 
@@ -33,7 +33,7 @@ class TestAgentCreation:
             f"{AGENT_MODULE}.BedrockModel", lambda **kwargs: MockModel()
         )
 
-        from agents.deep.agent import create_agent
+        from agents.dsp.agent import create_agent
 
         agent = create_agent(agent_id="custom-agent")
 
@@ -50,7 +50,7 @@ class TestAgentCreation:
             lambda **kwargs: MockSessionManager(),
         )
 
-        from agents.deep.agent import create_agent
+        from agents.dsp.agent import create_agent
 
         agent = create_agent(session_id="sess-123", actor_id="user-456")
 
@@ -66,7 +66,7 @@ class TestAgentConfiguration:
             f"{AGENT_MODULE}.BedrockModel", lambda **kwargs: MockModel()
         )
 
-        from agents.deep.agent import create_agent
+        from agents.dsp.agent import create_agent
 
         agent = create_agent()
 
