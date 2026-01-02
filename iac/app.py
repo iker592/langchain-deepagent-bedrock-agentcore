@@ -1,7 +1,7 @@
 from aws_cdk import App
 
-from .stack import ServerlessDeepAgentStack
+from .stack import DSPAgentStack
 
 app = App()
-ServerlessDeepAgentStack(app, "ServerlessDeepAgentStack")
+DSPAgentStack(app, "DSPAgentStack")
 app.synth()

@@ -12,23 +12,23 @@ from botocore.exceptions import ClientError
 from constructs import Construct
 
 
-class ServerlessDeepAgentStack(Stack):
+class DSPAgentStack(Stack):
     def __init__(self, scope: Construct, construct_id: str, **kwargs) -> None:
         super().__init__(scope, construct_id, **kwargs)
 
         if not self._is_transaction_search_active():
             self._enable_transaction_search()
 
-        deepagent_runtime_artifact = AgentRuntimeArtifact.from_asset(
+        dspagent_runtime_artifact = AgentRuntimeArtifact.from_asset(
             str(Path(__file__).parent.parent.resolve())
         )
 
         memory = Memory(self, "Memory", memory_name="memory")
         runtime = Runtime(
             self,
-            "DeepAgent",
-            runtime_name="deep_agent",
-            agent_runtime_artifact=deepagent_runtime_artifact,
+            "DSPAgent",
+            runtime_name="dsp_agent",
+            agent_runtime_artifact=dspagent_runtime_artifact,
             environment_variables={
                 "AWS_REGION": self.region,
                 "MEMORY_ID": memory.memory_id,
