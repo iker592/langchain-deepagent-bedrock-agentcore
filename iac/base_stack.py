@@ -17,6 +17,7 @@ class AgentStack(Stack):
         agent_name: str,
         agent_path: str = "./agents/dsp",
         model: str = "bedrock:global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+        extra_environment_variables: dict | None = None,
         **kwargs,
     ) -> None:
         """
@@ -28,6 +29,7 @@ class AgentStack(Stack):
             agent_name: Name of the agent (used for resource naming)
             agent_path: Path to agent directory (relative to project root)
             model: Bedrock model ID to use
+            extra_environment_variables: Additional env vars for the runtime
         """
         super().__init__(scope, construct_id, **kwargs)
 
@@ -47,18 +49,23 @@ class AgentStack(Stack):
             memory_name=f"{agent_name.lower().replace(' ', '_')}_memory",
         )
 
+        # Build environment variables
+        env_vars = {
+            "AWS_REGION": self.region,
+            "MEMORY_ID": memory.memory_id,
+            "MODEL": model,
+            "AGENT_NAME": agent_name,
+        }
+        if extra_environment_variables:
+            env_vars.update(extra_environment_variables)
+
         # Create runtime
         runtime = Runtime(
             self,
             f"{agent_name}Runtime",
             runtime_name=agent_name.lower().replace(" ", "_"),
             agent_runtime_artifact=artifact,
-            environment_variables={
-                "AWS_REGION": self.region,
-                "MEMORY_ID": memory.memory_id,
-                "MODEL": model,
-                "AGENT_NAME": agent_name,
-            },
+            environment_variables=env_vars,
         )
 
         # IAM permissions for Bedrock model invocation

@@ -10,5 +10,9 @@ class CodingAgentStack(AgentStack):
             construct_id,
             agent_name="CodingAgent",
             agent_path="./agents/coding",
+            # python_repl tool needs a writable directory for state persistence
+            extra_environment_variables={
+                "PYTHON_REPL_PERSISTENCE_DIR": "/tmp",
+            },
             **kwargs,
         )
