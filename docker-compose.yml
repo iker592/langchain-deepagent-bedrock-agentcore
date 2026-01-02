@@ -4,7 +4,7 @@ services:
       context: .
       platforms:
         - linux/arm64
-    image: deepagent
+    image: dspagent
     ports:
       - "8080:8080"
     volumes:

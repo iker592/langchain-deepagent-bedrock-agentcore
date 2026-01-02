@@ -170,7 +170,7 @@ make deploy      # Deploy via CDK
 ```
 
 Outputs:
-- `RuntimeName`: Agent runtime ID (e.g., `deep_agent-grrXst44Ca`)
+- `RuntimeName`: Agent runtime ID (e.g., `dsp_agent-grrXst44Ca`)
 - `MemoryId`: Memory store ID (e.g., `memory-YkJACvBGME`)
 
 ### Invoke Deployed Agent
@@ -255,7 +255,7 @@ Test your deployed agent directly from the AWS Console:
 
 1. Go to **Bedrock AgentCore**
 2. Go to **Test/Agent Sandbox** in the left sidebar
-3. Select your agent from the dropdown (`deep_agent`)
+3. Select your agent from the dropdown (`dsp_agent`)
 5. Choose **Endpoint**: `DEFAULT`
 6. Paste this JSON payload in the **Input** field:
 

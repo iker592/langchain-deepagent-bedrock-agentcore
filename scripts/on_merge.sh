@@ -29,7 +29,7 @@ echo "  Duration: ${DEPLOY_DURATION}s"
 
 echo ""
 echo "Step 4: Get latest version..."
-RUNTIME_ID=$(cat cdk-outputs.json | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['ServerlessDeepAgentStack']['RuntimeId'])")
+RUNTIME_ID=$(cat cdk-outputs.json | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['DSPAgentStack']['RuntimeId'])")
 VERSION=$(uv run python scripts/get_latest_version.py $RUNTIME_ID)
 echo "Deployed version: $VERSION"
 

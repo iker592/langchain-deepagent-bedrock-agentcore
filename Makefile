@@ -88,7 +88,7 @@ test-unit:
 	uv run pytest -m unit
 
 test-e2e: aws-auth
-	$(eval ARN := $(shell cat cdk-outputs.json 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['ServerlessDeepAgentStack']['RuntimeArn'])" 2>/dev/null || echo ""))
+	$(eval ARN := $(shell cat cdk-outputs.json 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['DSPAgentStack']['RuntimeArn'])" 2>/dev/null || echo ""))
 	$(eval ENDPOINT := $(or $(ENDPOINT),dev))
 	@if [ -z "$(ARN)" ]; then \
 		echo "Error: No deployment found. Run 'make deploy' first."; \
@@ -124,14 +124,14 @@ deploy: aws-auth
 	uv run cdk deploy --require-approval never --outputs-file cdk-outputs.json
 	@echo ""
 	@echo "Deployment complete! Endpoints:"
-	@cat cdk-outputs.json | python3 -c "import sys,json; d=json.load(sys.stdin)['ServerlessDeepAgentStack']; print(f\"  dev:    {d['DevEndpointArn']}\"); print(f\"  canary: {d['CanaryEndpointArn']}\"); print(f\"  prod:   {d['ProdEndpointArn']}\")"
+	@cat cdk-outputs.json | python3 -c "import sys,json; d=json.load(sys.stdin)['DSPAgentStack']; print(f\"  dev:    {d['DevEndpointArn']}\"); print(f\"  canary: {d['CanaryEndpointArn']}\"); print(f\"  prod:   {d['ProdEndpointArn']}\")"
 
 promote-canary: aws-auth
 	@if [ -z "$(VERSION)" ]; then \
 		echo "Usage: make promote-canary VERSION=N"; \
 		exit 1; \
 	fi
-	$(eval RUNTIME_ID := $(shell cat cdk-outputs.json | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['ServerlessDeepAgentStack']['RuntimeId'])"))
+	$(eval RUNTIME_ID := $(shell cat cdk-outputs.json | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['DSPAgentStack']['RuntimeId'])"))
 	@echo "Promoting canary endpoint to version $(VERSION)..."
 	aws bedrock-agentcore-control update-agent-runtime-endpoint \
 		--agent-runtime-id $(RUNTIME_ID) \
@@ -144,7 +144,7 @@ promote-prod: aws-auth
 		echo "Usage: make promote-prod VERSION=N"; \
 		exit 1; \
 	fi
-	$(eval RUNTIME_ID := $(shell cat cdk-outputs.json | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['ServerlessDeepAgentStack']['RuntimeId'])"))
+	$(eval RUNTIME_ID := $(shell cat cdk-outputs.json | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['DSPAgentStack']['RuntimeId'])"))
 	@echo "Promoting prod endpoint to version $(VERSION)..."
 	aws bedrock-agentcore-control update-agent-runtime-endpoint \
 		--agent-runtime-id $(RUNTIME_ID) \
@@ -153,11 +153,11 @@ promote-prod: aws-auth
 		--region us-east-1
 
 get-latest-version:
-	@$(eval RUNTIME_ID := $(shell cat cdk-outputs.json | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['ServerlessDeepAgentStack']['RuntimeId'])"))
+	@$(eval RUNTIME_ID := $(shell cat cdk-outputs.json | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['DSPAgentStack']['RuntimeId'])"))
 	@uv run python scripts/get_latest_version.py $(RUNTIME_ID)
 
 promote-canary-latest: aws-auth
-	$(eval RUNTIME_ID := $(shell cat cdk-outputs.json | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['ServerlessDeepAgentStack']['RuntimeId'])"))
+	$(eval RUNTIME_ID := $(shell cat cdk-outputs.json | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['DSPAgentStack']['RuntimeId'])"))
 	$(eval VERSION := $(shell uv run python scripts/get_latest_version.py $(RUNTIME_ID)))
 	@echo "Promoting canary endpoint to latest version $(VERSION)..."
 	aws bedrock-agentcore-control update-agent-runtime-endpoint \
@@ -167,7 +167,7 @@ promote-canary-latest: aws-auth
 		--region us-east-1
 
 promote-prod-latest: aws-auth
-	$(eval RUNTIME_ID := $(shell cat cdk-outputs.json | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['ServerlessDeepAgentStack']['RuntimeId'])"))
+	$(eval RUNTIME_ID := $(shell cat cdk-outputs.json | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['DSPAgentStack']['RuntimeId'])"))
 	$(eval VERSION := $(shell uv run python scripts/get_latest_version.py $(RUNTIME_ID)))
 	@echo "Promoting prod endpoint to latest version $(VERSION)..."
 	aws bedrock-agentcore-control update-agent-runtime-endpoint \
@@ -188,7 +188,7 @@ invoke: aws-auth
 		exit 1; \
 	fi
 	$(eval ENDPOINT := $(or $(ENDPOINT),dev))
-	$(eval ARN := $(shell cat cdk-outputs.json 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['ServerlessDeepAgentStack']['RuntimeArn'])" 2>/dev/null || echo ""))
+	$(eval ARN := $(shell cat cdk-outputs.json 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['DSPAgentStack']['RuntimeArn'])" 2>/dev/null || echo ""))
 	@if [ -z "$(ARN)" ]; then \
 		echo "Error: No deployment found. Run 'make deploy' first."; \
 		exit 1; \
@@ -202,7 +202,7 @@ invoke-stream: aws-auth
 		exit 1; \
 	fi
 	$(eval ENDPOINT := $(or $(ENDPOINT),dev))
-	$(eval ARN := $(shell cat cdk-outputs.json 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['ServerlessDeepAgentStack']['RuntimeArn'])" 2>/dev/null || echo ""))
+	$(eval ARN := $(shell cat cdk-outputs.json 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['DSPAgentStack']['RuntimeArn'])" 2>/dev/null || echo ""))
 	@if [ -z "$(ARN)" ]; then \
 		echo "Error: No deployment found. Run 'make deploy' first."; \
 		exit 1; \
@@ -216,7 +216,7 @@ invoke-agui: aws-auth
 		exit 1; \
 	fi
 	$(eval ENDPOINT := $(or $(ENDPOINT),dev))
-	$(eval ARN := $(shell cat cdk-outputs.json 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['ServerlessDeepAgentStack']['RuntimeArn'])" 2>/dev/null || echo ""))
+	$(eval ARN := $(shell cat cdk-outputs.json 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['DSPAgentStack']['RuntimeArn'])" 2>/dev/null || echo ""))
 	@if [ -z "$(ARN)" ]; then \
 		echo "Error: No deployment found. Run 'make deploy' first."; \
 		exit 1; \
