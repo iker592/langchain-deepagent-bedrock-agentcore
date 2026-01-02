@@ -317,7 +317,3 @@ See [AgentCore Memory documentation](https://strandsagents.com/latest/documentat
 - [AgentCore Memory Session Manager](https://strandsagents.com/latest/documentation/docs/community/session-managers/agentcore-memory/)
 - [AWS Bedrock AgentCore](https://docs.aws.amazon.com/bedrock-agentcore/)
 - [AWS CDK Python](https://docs.aws.amazon.com/cdk/v2/guide/work-with-cdk-python.html)
-
-## 📄 License
-
-MIT
